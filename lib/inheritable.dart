@@ -2,8 +2,6 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:meta/meta.dart';
 
-import 'built_list_key.dart';
-
 /// Given [T] extract certain aspect [A] from [it] and return that.
 ///
 /// You can return anything as long as it satisfies type [A]
