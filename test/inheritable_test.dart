@@ -300,8 +300,8 @@ Future<void> main([List<String> args]) async {
 
     final someAspectW = _SomeAspectW(
       {
-        Aspect.single((User u) => u.fname, const Key('user-fname')),
-        Aspect.single((User u) => u.lname, const Key('user-lname')),
+        Aspect((User u) => u.fname, const Key('user-fname')),
+        Aspect((User u) => u.lname, const Key('user-lname')),
       },
       key: const ValueKey('some-aspect'),
     );
@@ -353,8 +353,8 @@ Future<void> main([List<String> args]) async {
 
     final someAspectW = _SomeAspectW(
       {
-        Aspect.single((User u) => u.fname, const Key('user-fname')),
-        Aspect.single(
+        Aspect((User u) => u.fname, const Key('user-fname')),
+        Aspect(
           (User u) => u.lname.hashCode,
           const Key('user-lname-hashCode'),
         ),
@@ -409,8 +409,8 @@ Future<void> main([List<String> args]) async {
 
     final someAspectW = _SomeAspectW(
       {
-        Aspect.single((User u) => u.fname, const Key('user-fname')),
-        Aspect.single((User u) => u.lname, const Key('user-lname'))
+        Aspect((User u) => u.fname, const Key('user-fname')),
+        Aspect((User u) => u.lname, const Key('user-lname'))
             .where(({next, prev}) {
           return next != 'last2';
         }),
@@ -465,8 +465,8 @@ Future<void> main([List<String> args]) async {
 
     final someAspectW = _SomeAspectW(
       {
-        Aspect.single((User u) => u.fname, const Key('user-fname')),
-        Aspect.single((User u) => u.lname, const Key('user-lname'))
+        Aspect((User u) => u.fname, const Key('user-fname')),
+        Aspect((User u) => u.lname, const Key('user-lname'))
             .where(({next, prev}) => next == 'last2'),
       },
       key: const ValueKey('some-aspect'),
@@ -518,7 +518,7 @@ Future<void> main([List<String> args]) async {
       ..lname = 'last';
 
     final chainedAspectW = _ChainableAspectW(
-      Aspect.single<String, User>(
+      Aspect<String, User>(
         (User u) => u.fname,
         const Key('user-fname-lower'),
       ).map((fname) => fname.toLowerCase()),
@@ -571,8 +571,8 @@ Future<void> main([List<String> args]) async {
 
     final someChainedAspectW = _SomeChainedAspectW(
       {
-        Aspect.single((User u) => u.fname, const Key('user-fname')),
-        Aspect.single((User u) => u.lname, const Key('user-lname')),
+        Aspect((User u) => u.fname, const Key('user-fname')),
+        Aspect((User u) => u.lname, const Key('user-lname')),
       },
       key: const ValueKey('some-chained-aspect'),
     );
@@ -624,8 +624,8 @@ Future<void> main([List<String> args]) async {
 
     final someChainedAspectW = _SomeChainedAspectW(
       {
-        Aspect.single((User u) => u.fname, const Key('user-fname')),
-        Aspect.single(
+        Aspect((User u) => u.fname, const Key('user-fname')),
+        Aspect(
           (User u) => u.lname.hashCode,
           const Key('user-lname-hashCode'),
         ),
@@ -680,8 +680,8 @@ Future<void> main([List<String> args]) async {
 
     final someChainedAspectW = _SomeChainedAspectW(
       {
-        Aspect.single((User u) => u.fname, const Key('user-fname')),
-        Aspect.single((User u) => u.lname, const Key('user-lname'))
+        Aspect((User u) => u.fname, const Key('user-fname')),
+        Aspect((User u) => u.lname, const Key('user-lname'))
             .where(({next, prev}) {
           return next != 'last2';
         }),
@@ -737,8 +737,8 @@ Future<void> main([List<String> args]) async {
 
     final someChainedAspectW = _SomeChainedAspectW(
       {
-        Aspect.single((User u) => u.fname, const Key('user-fname')),
-        Aspect.single((User u) => u.lname, const Key('user-lname'))
+        Aspect((User u) => u.fname, const Key('user-fname')),
+        Aspect((User u) => u.lname, const Key('user-lname'))
             .where(({next, prev}) => next == 'last2'),
       },
       key: const ValueKey('some-chained-aspect'),
@@ -843,14 +843,14 @@ class _SingleAspectWState<A, T> extends State<_SingleAspectW<A, T>> {
 
   @override
   Widget build(BuildContext context) {
-    final aspect = Aspect.single(widget._extract, key).of(context);
+    final aspect = Aspect(widget._extract, key).of(context);
     final text = User.displayW(key.value, aspect, _buildCount += 1);
     return Text(text);
   }
 }
 
 class _SomeAspectW<T> extends StatefulWidget {
-  final Set<Aspect<T>> _aspects;
+  final Set<InheritableAspect<T>> _aspects;
   const _SomeAspectW(
     this._aspects, {
     @required ValueKey<String> key,
@@ -874,7 +874,7 @@ class _SomeAspectWState<T> extends State<_SomeAspectW<T>> {
 }
 
 class _SomeChainedAspectW<T> extends StatefulWidget {
-  final Set<Aspect<T>> _aspects;
+  final Set<InheritableAspect<T>> _aspects;
   const _SomeChainedAspectW(
     this._aspects, {
     @required ValueKey<String> key,
@@ -902,7 +902,7 @@ class _SomeChainedAspectWState<T> extends State<_SomeChainedAspectW<T>> {
 }
 
 class _ChainableAspectW<T> extends StatefulWidget {
-  final Aspect<T> aspect;
+  final InheritableAspect<T> aspect;
   const _ChainableAspectW(
     this.aspect, {
     @required ValueKey<String> key,

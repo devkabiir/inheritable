@@ -7,120 +7,53 @@ import 'package:meta/meta.dart';
 /// You can return anything as long as it satisfies type [A]
 typedef SingleAspect<A, T> = A Function(T it);
 
-/// {@macro Aspect.multi}
+/// {@macro InheritableAspect.multi}
 typedef MultiAspect<A, T> = Iterable<A> Function(T it);
 
-/// {@macro Aspect.indexed}
+/// {@macro InheritableAspect.indexed}
 typedef IndexedAspect<A, T> = A Function(T it, {int at});
 
-/// {@macro Aspect.iterate}
+/// {@macro InheritableAspect.iterate}
 typedef RandomAccessIndexedAspect<A, T> = Iterable<A> Function(T it, {int at});
 
-/// {@macro Aspect.list}
+/// {@macro InheritableAspect.list}
 typedef EfficientLengthIndexedAspect<A, T> = List<A Function()> Function(T it);
 
 /// Given [T] return whether you should be notified or not.
 typedef PredicateAspect<T> = bool Function({T prev, T next});
 
-/// Modifiers that signal [Aspect.multi] and variants to take certain actions when yielded
-///
-/// It is up to the implementation of an [Aspect] how to use these and whether to
-/// skip it altogether.
-enum AspectModifier {
-  /// {@template AspectModifier.skip}
-  /// Use when you don't want to be notified when a certain aspect has a certain
-  /// value. This can also be used in place of [absent] for "absent" values you
-  /// want to skip-over.
-  /// {@endtemplate}
-  skip,
-
-  /// {@template AspectModifier.absent}
-  /// Use when you want to be notified when a certain aspect has "absent" value.
-  ///
-  /// "absent" here refers to any value you consider to be `null`, invalid or just
-  /// absent 🤷‍♂️ but still want to be notified for it.
-  ///
-  /// Notified here refers to rebuilding your widget.
-  /// {@endtemplate}
-  absent,
-
-  // TODO: Spec for AspectModifier.unsatisfied
-  unsatisfied,
-
-  /// {@template AspectModifier.forceNotify}
-  /// Always notify regardless of the value.
-  ///
-  /// This is the default behaviour of
-  /// many different kinds of [InheritedWidget] implementation if they do not provide
-  /// sufficiently correct implementation of
-  /// [InheritedWidget.updateShouldNotify]. Similarly if
-  /// [InheritedModel.updateShouldNotifyDependent] is not doing sufficient
-  /// comparisons or comparisons that do not matter for your use-case or aspect
-  /// are still being performed.
-  ///
-  /// Note that once this value is `yield`ed, you immediately get notified
-  /// regardless of whether there are more aspects remaining for comparison or not.
-  /// {@endtemplate}
-  forceNotify,
-}
-
 /// An aspect of [T]
-abstract class Aspect<T> with Diagnosticable {
-  static bool _handleAspectModifiers<A>(A aspect, A Function() other) {
-    /// Skip notifying, go to next aspect
-    if (Aspect.skip == aspect) {
-      return false;
-    }
-
-    /// Force notification, don't go to next aspect
-    if (Aspect.forceNotify == aspect) {
-      return true;
-    }
-
-    /// Also works for [Aspect.absent]
-    return aspect != other();
-  }
-
-  /// {@macro AspectModifier.forceNotify}
-  static const forceNotify = AspectModifier.forceNotify;
-
-  /// {@macro AspectModifier.absent}
-  static const absent = AspectModifier.absent;
-
-  /// {@macro AspectModifier.skip}
-  static const skip = AspectModifier.skip;
-
+abstract class InheritableAspect<T> with Diagnosticable {
   /// Actual value for [key], this can be skipped, in which case a default value
   /// will be provided
   @protected
   Key get $key;
 
   /// Uniquely identifying local key for this aspect.
-  /// This used by [hashCode] and [==]. This allows [Aspect] implementations to
+  /// This used by [hashCode] and [==]. This allows [InheritableAspect] implementations to
   /// accept and hold closures in object instances and still have a unique
   /// object identity.
   ///
   /// Same key can also be used to replace an aspect used by a widget.
-  Key get key => $key ?? Key('Aspect<$T>($debugLabel)');
+  Key get key => $key ?? Key('InheritableAspect<$T>($debugLabel)');
 
   /// Debug-mode label for this aspect
   final String debugLabel;
 
   /// Constant constructor for subclasses
-  const Aspect([this.debugLabel]);
+  const InheritableAspect([this.debugLabel]);
 
-  /// Unconditionally notify listener
+  /// {@macro InheritableAspect.none}
   static NoAspect<T> none<T>([Key key]) => NoAspect<T>(key);
 
   /// Create an aspect of [T] that is of type [A]
   ///
   /// The provided function will be provided [T] and it should take only 1
   /// aspect from it.
-  static ChainableAspect<A, T> single<A, T>(SingleAspect<A, T> extract,
-          [Key key]) =>
-      ChainableAspect<A, T>(extract, key);
+  static Aspect<A, T> single<A, T>(SingleAspect<A, T> extract, [Key key]) =>
+      Aspect<A, T>(extract, key);
 /* 
-  /// {@template Aspect.multi}
+  /// {@template InheritableAspect.multi}
   /// Acquire multiple aspects from [T]
   ///
   /// Use this variant of [Aspect] when you want to be notified if __any__ of the
@@ -248,8 +181,8 @@ abstract class Aspect<T> with Diagnosticable {
   /// aspect owner should be notified.
   bool shouldNotify(T newValue, T oldValue);
 
-  /// {@template Aspect.of}
-  /// Convenience method for when an [Aspect] is already known.
+  /// {@template InheritableAspect.of}
+  /// Convenience method for when an [InheritableAspect] is already known.
   ///
   /// Provide [rebuild] (defaults to `true`) if you want to control whether
   /// [context] should depend on the nearest enclosing [Inheritable] of [T].
@@ -257,8 +190,8 @@ abstract class Aspect<T> with Diagnosticable {
   /// {@endtemplate}
   ///
   /// Contrary to similar static `of` methods, this is an instance method, since
-  /// the return value depends on the [Aspect] implementation itself and it cannot be a generic
-  /// parameter on the [Aspect] class. Since it would not allow using `Aspect<T>`
+  /// the return value depends on the [InheritableAspect] implementation itself and it cannot be a generic
+  /// parameter on the [InheritableAspect] class. Since it would not allow using `InheritableAspect<T>`
   /// in many places.
   ///
   /// Subclasses may also provide additional configuration via named parameters.
@@ -271,11 +204,12 @@ abstract class Aspect<T> with Diagnosticable {
   }
 
   @override
-  get hashCode => hashValues(Aspect, T, key);
+  get hashCode => hashValues(InheritableAspect, T, key);
 
   @override
   operator ==(Object other) {
-    return identical(this, other) || (other is Aspect<T> && key == other.key);
+    return identical(this, other) ||
+        (other is InheritableAspect<T> && key == other.key);
   }
 
   @override
@@ -295,13 +229,13 @@ abstract class Aspect<T> with Diagnosticable {
   }
 }
 
-extension AspectChainable<T> on Aspect<T> {
-  /// {@template Aspect.map}
+extension InheritableAspectChainable<T> on InheritableAspect<T> {
+  /// {@template InheritableAspect.map}
   /// Use [mapper] to be notified for [T] when it
   /// s mapped value changes
   /// {@endtemplate}
-  ChainableAspect<R, T> map<R>(R Function(T) mapper, [Key key]) {
-    return ChainableAspect<R, T>.custom(
+  Aspect<R, T> map<R>(R Function(T) mapper, [Key key]) {
+    return Aspect<R, T>.custom(
       (newValue, oldValue) =>
           shouldNotify(newValue, oldValue) &&
           mapper(newValue) != mapper(oldValue),
@@ -310,11 +244,11 @@ extension AspectChainable<T> on Aspect<T> {
     );
   }
 
-  /// {@template Aspect.where}
+  /// {@template InheritableAspect.where}
   /// Use [predicate] whether to be notified for [T]
   /// {@endtemplate}
-  ChainableAspect<T, T> where(PredicateAspect<T> predicate, [Key key]) {
-    return ChainableAspect<T, T>.custom(
+  Aspect<T, T> where(PredicateAspect<T> predicate, [Key key]) {
+    return Aspect<T, T>.custom(
       (newValue, oldValue) =>
           shouldNotify(newValue, oldValue) &&
           predicate(next: newValue, prev: oldValue),
@@ -323,9 +257,8 @@ extension AspectChainable<T> on Aspect<T> {
     );
   }
 
-  /// Returns an [Aspect] that notifies when [other] and `this` both say [shouldNotify].
-  ChainableAspect<T, T> operator &(Aspect<T> other) =>
-      ChainableAspect<T, T>.custom(
+  /// Returns an [InheritableAspect] that notifies when [other] and `this` both say [shouldNotify].
+  Aspect<T, T> operator &(InheritableAspect<T> other) => Aspect<T, T>.custom(
         (newValue, oldValue) =>
             shouldNotify(newValue, oldValue) &
             other.shouldNotify(newValue, oldValue),
@@ -333,9 +266,8 @@ extension AspectChainable<T> on Aspect<T> {
         key,
       );
 
-  /// Returns an [Aspect] that notifies when either [other] or `this` say [shouldNotify].
-  ChainableAspect<T, T> operator |(Aspect<T> other) =>
-      ChainableAspect<T, T>.custom(
+  /// Returns an [InheritableAspect] that notifies when either [other] or `this` say [shouldNotify].
+  Aspect<T, T> operator |(InheritableAspect<T> other) => Aspect<T, T>.custom(
         (newValue, oldValue) =>
             shouldNotify(newValue, oldValue) |
             other.shouldNotify(newValue, oldValue),
@@ -344,10 +276,10 @@ extension AspectChainable<T> on Aspect<T> {
       );
 }
 
-extension AspectIterable<T> on Iterable<Aspect<T>> {
-  /// [_SumAspect]s all of the elements of this
-  Aspect<T> some() {
-    Aspect<T> value = first;
+extension InheritableAspectIterable<T> on Iterable<InheritableAspect<T>> {
+  /// Creates an aspect that notifies if _some_ of the aspects from this notify
+  InheritableAspect<T> some() {
+    InheritableAspect<T> value = first;
     skip(1).forEach((element) {
       value = value | element;
     });
@@ -355,13 +287,12 @@ extension AspectIterable<T> on Iterable<Aspect<T>> {
     return value;
   }
 
-  /// [_ProductAspect]s all of the elements of this. Use this when you want to
-  /// be notified only when _all_ of the aspects have changed. You won't be
-  /// notified if _some_ of the aspects have changed.
+  /// Creates an aspect that notifies only when _all_ of the aspects from this notify. You won't be
+  /// notified if _some_ or none of the aspects have changed.
   ///
   /// __CAUTION__: This is very tricky to use.
-  Aspect<T> all() {
-    Aspect<T> value = first;
+  InheritableAspect<T> all() {
+    InheritableAspect<T> value = first;
     skip(1).forEach((element) {
       value = value & element;
     });
@@ -370,9 +301,17 @@ extension AspectIterable<T> on Iterable<Aspect<T>> {
   }
 }
 
-class NoAspect<T> extends Aspect<T> {
+/// {@template InheritableAspect.none}
+/// Convenience [InheritableAspect] implementation to achieve similar effect as
+/// that of [InheritedWidget]
+///
+/// This aspect notifies as soon as [T] changes
+/// {@endtemplate}
+class NoAspect<T> extends InheritableAspect<T> {
   @override
   final Key $key;
+
+  /// {@macro InheritableAspect.none}
   const NoAspect(this.$key) : super('NoAspect');
 
   @override
@@ -387,10 +326,10 @@ class NoAspect<T> extends Aspect<T> {
   @override
   shouldNotify(newValue, oldValue) => newValue != oldValue;
 
-  /// {@macro Aspect.of}
+  /// {@macro InheritableAspect.of}
   ///
   ///
-  /// {@template Aspect.of.defaultValue}
+  /// {@template InheritableAspect.of.defaultValue}
   ///
   /// Optionally provide [defaultValue] when there is no [Inheritable] of [T] in
   /// the given [context]. Otherwise this will return `null`
@@ -402,18 +341,18 @@ class NoAspect<T> extends Aspect<T> {
   }
 }
 
-class ChainableAspect<R, T> extends Aspect<T> {
+class Aspect<A, T> extends InheritableAspect<T> {
   @override
   final Key $key;
-  final R Function(T) mapper;
+  final A Function(T) mapper;
 
   final bool Function(T newValue, T oldValue) _shouldNotifyImpl;
 
-  const ChainableAspect(this.mapper, [this.$key])
+  const Aspect(this.mapper, [this.$key])
       : _shouldNotifyImpl = null,
         super('ChainableAspect');
 
-  const ChainableAspect.custom(this._shouldNotifyImpl, this.mapper, [this.$key])
+  const Aspect.custom(this._shouldNotifyImpl, this.mapper, [this.$key])
       : assert(mapper != null),
         super('ChainableAspect.custom');
 
@@ -429,38 +368,38 @@ class ChainableAspect<R, T> extends Aspect<T> {
     return shouldNotifyImpl(newValue, oldValue);
   }
 
-  /// {@macro Aspect.of}
+  /// {@macro InheritableAspect.of}
   ///
-  /// {@macro Aspect.of.defaultValue}
+  /// {@macro InheritableAspect.of.defaultValue}
   @override
-  R of(context, {rebuild = true, R defaultValue}) {
+  A of(context, {rebuild = true, A defaultValue}) {
     final obj =
         Inheritable.of<T>(context, aspect: this, rebuild: rebuild)?.value;
     return obj is T ? mapper(obj) : defaultValue;
   }
 
   @override
-  get hashCode => hashValues(ChainableAspect, R, T, key);
+  get hashCode => hashValues(Aspect, A, T, key);
 
   @override
   operator ==(Object other) {
     return identical(this, other) ||
-        (other is ChainableAspect<R, T> && key == other.key);
+        (other is Aspect<A, T> && key == other.key);
   }
 }
 
-extension ChainableAspectChianingFn<R, T> on ChainableAspect<R, T> {
+extension ChainableAspectChianingFn<R, T> on Aspect<R, T> {
   /// Use [other] to map the already mapped value by [mapper] for notifications of [T]
-  ChainableAspect<RR, T> map<RR>(RR Function(R) other, [Key key]) {
-    return ChainableAspect<RR, T>(
+  Aspect<RR, T> map<RR>(RR Function(R) other, [Key key]) {
+    return Aspect<RR, T>(
       (t) => other(mapper(t)),
       key ?? this.key,
     );
   }
 
-  /// {@macro Aspect.where}
-  ChainableAspect<R, T> where(PredicateAspect<R> predicate, [Key key]) {
-    return ChainableAspect<R, T>.custom(
+  /// {@macro InheritableAspect.where}
+  Aspect<R, T> where(PredicateAspect<R> predicate, [Key key]) {
+    return Aspect<R, T>.custom(
       (newValue, oldValue) =>
           shouldNotify(newValue, oldValue) &
           predicate(next: mapper(newValue), prev: mapper(oldValue)),
@@ -469,9 +408,8 @@ extension ChainableAspectChianingFn<R, T> on ChainableAspect<R, T> {
     );
   }
 
-  /// Returns an [Aspect] that notifies when [other] and `this` both say [shouldNotify].
-  ChainableAspect<R, T> operator &(Aspect<T> other) =>
-      ChainableAspect<R, T>.custom(
+  /// Returns an [InheritableAspect] that notifies when [other] and `this` both say [shouldNotify].
+  Aspect<R, T> operator &(InheritableAspect<T> other) => Aspect<R, T>.custom(
         (newValue, oldValue) =>
             shouldNotify(newValue, oldValue) &
             other.shouldNotify(newValue, oldValue),
@@ -479,9 +417,8 @@ extension ChainableAspectChianingFn<R, T> on ChainableAspect<R, T> {
         key,
       );
 
-  /// Returns an [Aspect] that notifies when either [other] or `this` say [shouldNotify].
-  ChainableAspect<R, T> operator |(Aspect<T> other) =>
-      ChainableAspect<R, T>.custom(
+  /// Returns an [InheritableAspect] that notifies when either [other] or `this` say [shouldNotify].
+  Aspect<R, T> operator |(InheritableAspect<T> other) => Aspect<R, T>.custom(
         (newValue, oldValue) =>
             shouldNotify(newValue, oldValue) |
             other.shouldNotify(newValue, oldValue),
@@ -491,8 +428,8 @@ extension ChainableAspectChianingFn<R, T> on ChainableAspect<R, T> {
 }
 
 extension WhereAspect<T> on PredicateAspect<T> {
-  ChainableAspect<T, T> toChainable([Key key]) {
-    return ChainableAspect<T, T>.custom(
+  Aspect<T, T> toChainable([Key key]) {
+    return Aspect<T, T>.custom(
       (newValue, oldValue) => this(next: newValue, prev: oldValue),
       (it) => it,
       key,
@@ -522,13 +459,13 @@ class _SingleAspect<A, T> extends Aspect<T> {
   @override
   shouldNotify(newValue, oldValue) => this(newValue) != this(oldValue);
 
-  /// {@macro Aspect.of}
+  /// {@macro InheritableAspect.of}
   ///
   /// If this can handle `null` values, specify [handleNull] (defaults to `false`).
   ///
   /// {@macro Inheritable.of.nullOk}
   ///
-  /// {@macro Aspect.of.defaultValue}
+  /// {@macro InheritableAspect.of.defaultValue}
   @override
   A of(
     context, {
@@ -572,9 +509,9 @@ class _RandomAccessIndexedAspect<A, T> extends Aspect<T> {
     });
   }
 
-  /// {@macro Aspect.of}
+  /// {@macro InheritableAspect.of}
   ///
-  /// {@macro Aspect.of.defaultValue}
+  /// {@macro InheritableAspect.of.defaultValue}
   @override
   T of(context, {rebuild = true, T defaultValue}) {
     return Inheritable.of<T>(context, aspect: this, rebuild: rebuild)?.value ??
@@ -614,9 +551,9 @@ class _EfficientLengthIndexedAspect<A, T> extends Aspect<T> {
     });
   }
 
-  /// {@macro Aspect.of}
+  /// {@macro InheritableAspect.of}
   ///
-  /// {@macro Aspect.of.defaultValue}
+  /// {@macro InheritableAspect.of.defaultValue}
   @override
   T of(context, {rebuild = true, T defaultValue}) {
     return Inheritable.of<T>(context, aspect: this, rebuild: rebuild)?.value ??
@@ -673,9 +610,9 @@ class _IndexedAspect<A, T> extends Aspect<T> {
     });
   }
 
-  /// {@macro Aspect.of}
+  /// {@macro InheritableAspect.of}
   ///
-  /// {@macro Aspect.of.defaultValue}
+  /// {@macro InheritableAspect.of.defaultValue}
   @override
   T of(context, {rebuild = true, T defaultValue}) {
     return Inheritable.of<T>(context, aspect: this, rebuild: rebuild)?.value ??
@@ -727,9 +664,9 @@ class _MultiAspect<A, T> extends Aspect<T> {
     });
   }
 
-  /// {@macro Aspect.of}
+  /// {@macro InheritableAspect.of}
   ///
-  /// {@macro Aspect.of.defaultValue}
+  /// {@macro InheritableAspect.of.defaultValue}
   @override
   T of(context, {rebuild = true, T defaultValue}) {
     return Inheritable.of<T>(context, aspect: this, rebuild: rebuild)?.value ??
@@ -739,15 +676,15 @@ class _MultiAspect<A, T> extends Aspect<T> {
  */
 
 /// Similar to [InheritedModel] provides a way to listen to certain aspects of
-/// [T] via [SingleAspect].
+/// [T].
 ///
 /// This moves the decision of whether a dependent should be updated or not to
 /// itself. As opposed to many other unconditional implementations of [InheritedWidget]
 ///
-/// This uses a generic [Aspect] to determine whether a dependent should be notified.
+/// This uses a generic [InheritableAspect] to determine whether a dependent should be notified.
 ///
-/// You can provide any implementation of [Aspect] or use one of the built-ins
-/// such as [Aspect.single], [Aspect.multi].
+/// You can provide any implementation of [InheritableAspect] or use one of the built-ins
+/// such as [Aspect].
 ///
 /// Note that, contrary to [InheritedModel], this does not allow depending
 /// without specifying a valid aspect. A valid aspect is determined by
@@ -762,10 +699,10 @@ class Inheritable<T> extends InheritedWidget {
   ///
   /// {@endtemplate}
   static Inheritable<T> of<T>(BuildContext context,
-      {Aspect<T> aspect, bool rebuild = true, bool nullOk = true}) {
+      {InheritableAspect<T> aspect, bool rebuild = true, bool nullOk = true}) {
     if (aspect == null)
       throw UnsupportedError(
-        'Cannot use Inheritable without specifying an aspect',
+        'Cannot depend on Inheritable<$T> without specifying an aspect',
       );
     final result = _findInheritableSupportingAspect<T>(context, aspect);
 
@@ -787,7 +724,7 @@ class Inheritable<T> extends InheritedWidget {
   }
 
   static _InheritableElement<T> _findInheritableSupportingAspect<T>(
-      BuildContext context, Aspect<T> aspect) {
+      BuildContext context, InheritableAspect<T> aspect) {
     if (context == null) return null;
 
     final start =
@@ -830,7 +767,7 @@ class Inheritable<T> extends InheritedWidget {
   /// Similar to [InheritedModel.isSupportedAspect]
   // TODO: Implement [isSupportedAspect], to iterate through ancestors until one
   // is found that supports the given aspect
-  bool isSupportedAspect(Object aspect) => aspect is Aspect<T>;
+  bool isSupportedAspect(Object aspect) => aspect is InheritableAspect<T>;
 
   @override
   bool updateShouldNotify(Inheritable<T> oldWidget) {
@@ -839,7 +776,7 @@ class Inheritable<T> extends InheritedWidget {
 
   /// Similar to [InheritedModel.updateShouldNotifyDependent]
   bool updateShouldNotifyDependent(
-      Inheritable<T> oldWidget, Iterable<Aspect<T>> dependencies) {
+      Inheritable<T> oldWidget, Iterable<InheritableAspect<T>> dependencies) {
     return dependencies.any(
       (aspect) => aspect.shouldNotify(value, oldWidget.value),
     );
@@ -861,11 +798,11 @@ class _InheritableElement<T> extends InheritedElement {
   @override
   Inheritable<T> get widget => super.widget as Inheritable<T>;
 
-  bool removeAspect(Element dependent, Aspect<T> aspect) {
+  bool removeAspect(Element dependent, InheritableAspect<T> aspect) {
     return removeKey(dependent, aspect?.key);
   }
 
-  bool removeAllAspects(Element dependent, Set<Aspect<T>> aspects) {
+  bool removeAllAspects(Element dependent, Set<InheritableAspect<T>> aspects) {
     return removeAllKeys(
       dependent,
       {...?aspects?.map((a) => a.key)},
@@ -873,8 +810,8 @@ class _InheritableElement<T> extends InheritedElement {
   }
 
   bool removeKey(Element dependent, Key key) {
-    final Map<Key, Aspect<T>> dependencies =
-        getDependencies(dependent) as Map<Key, Aspect<T>>;
+    final Map<Key, InheritableAspect<T>> dependencies =
+        getDependencies(dependent) as Map<Key, InheritableAspect<T>>;
 
     if (dependencies == null || dependencies.isEmpty || key == null)
       return false;
@@ -887,8 +824,8 @@ class _InheritableElement<T> extends InheritedElement {
   }
 
   bool removeAllKeys(Element dependent, Set<Key> keys) {
-    final Map<Key, Aspect<T>> dependencies =
-        getDependencies(dependent) as Map<Key, Aspect<T>>;
+    final Map<Key, InheritableAspect<T>> dependencies =
+        getDependencies(dependent) as Map<Key, InheritableAspect<T>>;
 
     if (dependencies == null ||
         dependencies.isEmpty ||
@@ -906,11 +843,11 @@ class _InheritableElement<T> extends InheritedElement {
 
   @override
   void updateDependencies(Element dependent, Object aspect) {
-    final Map<Key, Aspect<T>> dependencies =
-        (getDependencies(dependent) as Map<Key, Aspect<T>>) ??
-            <Key, Aspect<T>>{};
+    final Map<Key, InheritableAspect<T>> dependencies =
+        (getDependencies(dependent) as Map<Key, InheritableAspect<T>>) ??
+            <Key, InheritableAspect<T>>{};
 
-    if (aspect is Aspect<T>) {
+    if (aspect is InheritableAspect<T>) {
       // This allow replacing aspects by using same key
       dependencies[aspect.key] = aspect;
       setDependencies(dependent, dependencies);
@@ -932,7 +869,7 @@ class _InheritableElement<T> extends InheritedElement {
       final error = FlutterErrorDetails(
         exception: UnsupportedError('No aspect was specified'),
         stack: StackTrace.current,
-        library: 'inherited aspect',
+        library: 'inheritable',
         context: ErrorDescription('While depending on Inheritable<$T>'),
         informationCollector: collector,
       );
@@ -944,8 +881,8 @@ class _InheritableElement<T> extends InheritedElement {
 
   @override
   void notifyDependent(Inheritable<T> oldWidget, Element dependent) {
-    final Map<Key, Aspect<T>> dependencies =
-        getDependencies(dependent) as Map<Key, Aspect<T>>;
+    final Map<Key, InheritableAspect<T>> dependencies =
+        getDependencies(dependent) as Map<Key, InheritableAspect<T>>;
     if (dependencies == null || dependencies.isEmpty) return;
     if (widget.updateShouldNotifyDependent(oldWidget, dependencies.values))
       dependent.didChangeDependencies();
@@ -987,7 +924,7 @@ extension InheritAspect on BuildContext {
 }
 
 extension AggregateAspect<A, T> on SingleAspect<A, T> {
-  /// Create a new [Aspect] for [T] that requires this value as well
+  /// Create a new [InheritableAspect] for [T] that requires this value as well
   /// as [other]
   MultiAspect<Object, T> operator +(SingleAspect<Object, T> other) {
     return (it) sync* {
@@ -1003,7 +940,7 @@ extension TupleAspect<A1, A2, T> on SingleAspect<A1, T> {
 }
 
 extension AggregateAspects<A, T> on MultiAspect<A, T> {
-  /// Create a new [Aspect] for [T] that requires all values from this as
+  /// Create a new [InheritableAspect] for [T] that requires all values from this as
   /// well as [other]
   ///
   ///  An interesting syntax would be able to return a tuple of all aspects
@@ -1034,16 +971,12 @@ class _BuildContextAspect {
   ///
   /// You immediately get access to aspect [A] of [T]
   ///
-  /// Specify [handleNull], if you want to handle `null` values for
-  /// [Inheritable.value] in [extract]. A `null` value could also mean unsatisfied
-  /// dependency of [Inheritable].
-  ///
-  /// {@macro Aspect.of.defaultValue}
+  /// {@macro InheritableAspect.of.defaultValue}
   ///
   /// {@endtemplate}
   A call<A, T>(SingleAspect<A, T> extract, {A defaultValue}) {
     return _dispose((context) {
-      return Aspect.single<A, T>(extract).of(
+      return Aspect<A, T>(extract).of(
         context,
         defaultValue: defaultValue,
       );
@@ -1066,7 +999,7 @@ class _BuildContextAspect {
     });
   }
 
-  bool remove<T>(Aspect<T> aspect) {
+  bool remove<T>(InheritableAspect<T> aspect) {
     return _dispose((context) {
       final element =
           context.getElementForInheritedWidgetOfExactType<Inheritable<T>>()
@@ -1075,7 +1008,7 @@ class _BuildContextAspect {
     });
   }
 
-  bool removeAll<T>(Set<Aspect<T>> aspects) {
+  bool removeAll<T>(Set<InheritableAspect<T>> aspects) {
     return _dispose((context) {
       final element =
           context.getElementForInheritedWidgetOfExactType<Inheritable<T>>()
@@ -1133,7 +1066,7 @@ class _BuildContextAspect {
     });
   } */
 
-  /// {@template _BuildContextAspect.all}
+  /// {@template _BuildContextAspect.none}
   ///
   /// Unconditionally get notifications for [T].
   ///
@@ -1147,14 +1080,12 @@ class _BuildContextAspect {
   ///     Inheritable.of<YourValue>(_context, aspect: const NoAspect<YourValue>())
   ///
   /// {@endtemplate}
-  T all<T>({T defaultValue}) {
-    return none(defaultValue: defaultValue);
-  }
-
-  /// {@macro _BuildContextAspect.all}
   T none<T>({T defaultValue}) {
     return _dispose((context) {
-      return Aspect.none<T>().of(context, defaultValue: defaultValue);
+      return InheritableAspect.none<T>().of(
+        context,
+        defaultValue: defaultValue,
+      );
     });
   }
 
