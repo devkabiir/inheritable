@@ -277,7 +277,7 @@ class _ValueAspect<T> extends InheritableAspect<T> {
 
   @override
   InheritableAspect<T> ensureHasKey({Key fallback}) {
-    return delegate.ensureHasKey(fallback: fallback);
+    return _ValueAspect(delegate.ensureHasKey(fallback: fallback));
   }
 
   /// {@macro InheritableAspect.of}
@@ -306,10 +306,166 @@ class _ValueAspect<T> extends InheritableAspect<T> {
   }
 }
 
+class _ListenableAspect<T> extends InheritableAspect<T>
+    implements ValueListenable<T>, ChangeNotifier {
+  final notifier = ChangeNotifier();
+  InheritableAspect<T> delegate;
+
+  _ListenableAspect(this.delegate)
+      : super('ListenableAspect of ${delegate.debugLabel}');
+
+  @override
+  get key => delegate.key;
+
+  @override
+  InheritableAspect<T> ensureHasKey({Key fallback}) {
+    delegate = delegate.ensureHasKey(fallback: fallback);
+    return this;
+  }
+
+  @override
+  get hashCode => delegate.hashCode;
+
+  @override
+  operator ==(Object other) {
+    return delegate == other;
+  }
+
+  @override
+  bool shouldNotify(T newValue, T oldValue) {
+    if (delegate.shouldNotify(newValue, oldValue)) {
+      _value = newValue;
+      notifyListeners();
+    }
+
+    // Never cause a build
+    return false;
+  }
+
+  /// {@macro InheritableAspect.of}
+  ///
+  /// {@macro InheritableAspect.of.defaultValue}
+  ///
+  /// Common use case include using inline with [ValueListenableBuilder]
+  ///
+  /// ```dart
+  ///
+  /// ValueListenableBuilder<User>(
+  ///   listenable: Aspect((User u) => u.fname).listenable.of(context),
+  ///  // <other-parameters>
+  /// )
+  /// ```
+  ///
+  /// Alternatively saving the listenable in a stateful variable such as as a
+  /// member of [State] class
+  ///
+  /// ```dart
+  /// final user = Aspect((User u) => u.fname).listenable;
+  ///
+  /// @override
+  /// void initState() {
+  ///   super.initState();
+  ///   user.addListener(maybeReBuildForFirstName);
+  /// }
+  ///
+  /// @override
+  /// void dispose() {
+  ///   user.removeListener(maybeReBuildForFirstName);
+  ///   super.dispose();
+  /// }
+  ///
+  /// void maybeReBuildForFirstName() {
+  ///   if (user.value.fname.trim().isNotEmpty) {
+  ///     setState(() {});
+  ///   }
+  /// }
+  ///
+  /// @override
+  /// Widget build(BuildContext context) {
+  ///   return Text(user.value.fname);
+  /// }
+  ///
+  /// ```
+  @override
+  ValueListenable<T> of(context, {rebuild = true, T defaultValue}) {
+    _value = Inheritable.of<T>(
+          context,
+          aspect: this,
+          rebuild: rebuild,
+        )?.value ??
+        defaultValue;
+
+    return this;
+  }
+
+  @override
+  void debugFillProperties(DiagnosticPropertiesBuilder properties) {
+    super.debugFillProperties(properties);
+
+    properties
+      ..add(ObjectFlagProperty('delegate', delegate, ifNull: 'no-delegate'))
+      ..add(
+        FlagProperty(
+          'hasListeners',
+          value: hasListeners,
+          ifTrue: 'hasListeners',
+          ifFalse: 'noListeners',
+        ),
+      )
+      ..add(
+        ObjectFlagProperty(
+          'value',
+          value,
+          ifNull: 'no-value',
+        ),
+      );
+  }
+
+  @override
+  void addListener(listener) {
+    notifier.addListener(listener);
+  }
+
+  @override
+  void dispose() {
+    notifier.dispose();
+  }
+
+  @override
+  bool get hasListeners => notifier.hasListeners;
+
+  @override
+  void notifyListeners() {
+    notifier.notifyListeners();
+  }
+
+  @override
+  void removeListener(listener) {
+    notifier.removeListener(listener);
+  }
+
+  T _value;
+  @override
+  T get value => _value;
+}
+
 extension ValueAspect<T> on InheritableAspect<T> {
   /// Create an [InheritableAspect] that overrides the [InheritableAspect.of]
   /// implementation of [this] to return value of [T]
   _ValueAspect<T> get value => _ValueAspect(this);
+}
+
+extension ListenableAspect<T> on InheritableAspect<T> {
+  /// Create a [ValueListenable] implementation of [InheritableAspect] that
+  /// overrides the [InheritableAspect.shouldNotify] of [this] to notify it's
+  /// listeners without causing a build for enclosing [BuildContext]
+  ///
+  /// The returned [InheritableAspect] should ideally be held onto by stateful
+  /// variable.
+  ///
+  /// The [ChangeNotifier] won't fire unless the [of] method has satisfactory
+  /// [Inheritable] of [T].
+  _ListenableAspect<T> get listenable => _ListenableAspect(this);
 }
 
 class Aspect<A, T> extends InheritableAspect<T> {
