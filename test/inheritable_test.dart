@@ -783,6 +783,152 @@ Future<void> main([List<String> args]) async {
     expect(originalState, findsNothing);
     expect(User.stateW('some-chained-aspect', user, 2), findsOneWidget);
   });
+
+  testWidgets(
+      'Notifies parent for mutable value change [parent-rejects-change]',
+      (tester) async {
+    final user = User()
+      ..fname = 'first'
+      ..lname = 'last';
+
+    const firstNameW = _SingleMutableAspectW(
+      User.firstName,
+      key: ValueKey('first-name'),
+    );
+    const lastNameW = _SingleMutableAspectW(
+      User.lastName,
+      key: ValueKey('last-name'),
+    );
+    const fullNameW = _SingleMutableAspectW(
+      User.fullName,
+      key: ValueKey('full-name'),
+    );
+
+    await tester.pumpStatefulWidget(
+      (context, setState) {
+        return Inheritable<User>.mutable(
+          key: const Key('test-key'),
+          value: user,
+          onChange: (_) {},
+          child: Column(
+            key: const Key('column'),
+            children: [
+              Builder(
+                builder: (context) => FlatButton(
+                  key: const Key('button'),
+                  onPressed: () {
+                    context.aspect.update(
+                      User()
+                        ..fname = 'first'
+                        ..lname = 'last2',
+                    );
+                  },
+                  child: Text(
+                    'change-state of User.lname:${context.aspect(User.lastName)}',
+                  ),
+                ),
+              ),
+              const Flexible(child: firstNameW),
+              const Flexible(child: lastNameW),
+              const Flexible(child: fullNameW),
+            ],
+          ),
+        );
+      },
+    );
+
+    expect(tester.takeException(), isNull);
+    expect(User.stateW('first-name', 'first', 1), findsOneWidget);
+    expect(User.stateW('last-name', 'last', 1), findsOneWidget);
+    expect(User.stateW('full-name', 'first last', 1), findsOneWidget);
+    expect(find.text('change-state of User.lname:last'), findsOneWidget);
+
+    /// Trigger [InheritedWidget.updateShouldNotify]
+    /// & [InheritedModel.updateShouldNotifyDependent]
+    await tester.tap(find.byKey(const Key('button')));
+    await tester.pump();
+
+    expect(tester.takeException(), isNull);
+    expect(User.stateW('first-name', 'first', 1), findsOneWidget);
+    expect(User.stateW('last-name', 'last', 1), findsOneWidget);
+    expect(User.stateW('full-name', 'first last', 1), findsOneWidget);
+    expect(find.text('change-state of User.lname:last'), findsOneWidget);
+  });
+
+  testWidgets(
+      'Notifies parent for mutable value change [parent-accepts-change]',
+      (tester) async {
+    var user = User()
+      ..fname = 'first'
+      ..lname = 'last';
+
+    const firstNameW = _SingleMutableAspectW(
+      User.firstName,
+      key: ValueKey('first-name'),
+    );
+    const lastNameW = _SingleMutableAspectW(
+      User.lastName,
+      key: ValueKey('last-name'),
+    );
+    const fullNameW = _SingleMutableAspectW(
+      User.fullName,
+      key: ValueKey('full-name'),
+    );
+
+    await tester.pumpStatefulWidget(
+      (context, setState) {
+        return Inheritable<User>.mutable(
+          key: const Key('test-key'),
+          value: user,
+          onChange: (next) {
+            setState(() {
+              user = next;
+            });
+          },
+          child: Column(
+            key: const Key('column'),
+            children: [
+              Builder(
+                builder: (context) => FlatButton(
+                  key: const Key('button'),
+                  onPressed: () {
+                    context.aspect.update(
+                      User()
+                        ..fname = 'first'
+                        ..lname = 'last2',
+                    );
+                  },
+                  child: Text(
+                    'change-state of User.lname:${context.aspect(User.lastName)}',
+                  ),
+                ),
+              ),
+              const Flexible(child: firstNameW),
+              const Flexible(child: lastNameW),
+              const Flexible(child: fullNameW),
+            ],
+          ),
+        );
+      },
+    );
+
+    expect(tester.takeException(), isNull);
+    expect(User.stateW('first-name', 'first', 1), findsOneWidget);
+    expect(User.stateW('last-name', 'last', 1), findsOneWidget);
+    expect(User.stateW('full-name', 'first last', 1), findsOneWidget);
+    expect(find.text('change-state of User.lname:last'), findsOneWidget);
+
+    /// Trigger [InheritedWidget.updateShouldNotify]
+    /// & [InheritedModel.updateShouldNotifyDependent]
+    await tester.tap(find.byKey(const Key('button')));
+    await tester.pump();
+
+    expect(tester.takeException(), isNull);
+    expect(User.stateW('first-name', 'first', 1), findsOneWidget);
+    expect(User.stateW('last-name', 'last2', 2), findsOneWidget);
+    expect(User.stateW('full-name', 'first last2', 2), findsOneWidget);
+    expect(find.text('change-state of User.lname:last2'), findsOneWidget);
+  });
 }
 
 class _NoAspect<T> extends StatefulWidget {
@@ -921,6 +1067,32 @@ class _ChainableAspectWState<T> extends State<_ChainableAspectW<T>> {
   Widget build(BuildContext context) {
     final aspect = widget.aspect.of(context);
 
+    final text = User.displayW(key.value, aspect, _buildCount += 1);
+    return Text(text);
+  }
+}
+
+class _SingleMutableAspectW<A, T> extends StatefulWidget {
+  final SingleAspect<A, T> _extract;
+  const _SingleMutableAspectW(
+    this._extract, {
+    @required ValueKey<String> key,
+  }) : super(key: key);
+
+  @override
+  _SingleMutableAspectWState<A, T> createState() =>
+      _SingleMutableAspectWState<A, T>();
+}
+
+class _SingleMutableAspectWState<A, T>
+    extends State<_SingleMutableAspectW<A, T>> {
+  ValueKey<String> get key => widget.key as ValueKey<String>;
+
+  int _buildCount = 0;
+
+  @override
+  Widget build(BuildContext context) {
+    final aspect = Aspect(widget._extract, key).of(context);
     final text = User.displayW(key.value, aspect, _buildCount += 1);
     return Text(text);
   }
