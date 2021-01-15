@@ -1073,6 +1073,116 @@ Future<void> main([List<String> args]) async {
     expect(tester.takeException(), isNull);
     expect(User.stateW('inline-listenable-aspect', 'last2', 1), findsOneWidget);
   });
+
+  testWidgets(
+      'Allows removing dependent aspect without causing build for enclosing context',
+      (tester) async {
+    var user = User()
+      ..fname = 'first'
+      ..lname = 'last';
+
+    final removableAspectW = _RemovableAspectW(
+      Aspect((User u) => u.lname, const Key('user-lname')),
+      key: const ValueKey('removable-aspect'),
+    );
+
+    await tester.pumpStatefulWidget(
+      (context, setState) {
+        return Inheritable(
+          key: const Key('test-key'),
+          value: user,
+          child: Column(
+            key: const Key('column'),
+            children: [
+              FlatButton(
+                key: const Key('button'),
+                onPressed: () {
+                  setState(() {
+                    user = User()
+                      ..fname = 'first'
+                      ..lname = 'last2';
+                  });
+                },
+                child: const Text('change-state'),
+              ),
+              Flexible(child: removableAspectW),
+            ],
+          ),
+        );
+      },
+    );
+
+    final originalState = User.stateW('removable-aspect', 'last', 1);
+    expect(tester.takeException(), isNull);
+    expect(originalState, findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('remove-aspect-button')));
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    expect(originalState, findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('button')));
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    expect(originalState, findsOneWidget);
+  });
+
+  testWidgets(
+      'Allows removing dependent aspect (via key) without causing build for enclosing context',
+      (tester) async {
+    var user = User()
+      ..fname = 'first'
+      ..lname = 'last';
+
+    final removableAspectViaKeyW = _RemovableAspectViaKeyW(
+      Aspect((User u) => u.lname, const Key('user-lname')),
+      key: const ValueKey('removable-aspect-via-key'),
+    );
+
+    await tester.pumpStatefulWidget(
+      (context, setState) {
+        return Inheritable(
+          key: const Key('test-key'),
+          value: user,
+          child: Column(
+            key: const Key('column'),
+            children: [
+              FlatButton(
+                key: const Key('button'),
+                onPressed: () {
+                  setState(() {
+                    user = User()
+                      ..fname = 'first'
+                      ..lname = 'last2';
+                  });
+                },
+                child: const Text('change-state'),
+              ),
+              Flexible(child: removableAspectViaKeyW),
+            ],
+          ),
+        );
+      },
+    );
+
+    final originalState = User.stateW('removable-aspect-via-key', 'last', 1);
+    expect(tester.takeException(), isNull);
+    expect(originalState, findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('remove-aspect-via-key-button')));
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    expect(originalState, findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('button')));
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    expect(originalState, findsOneWidget);
+  });
 }
 
 class _InlineListenableAspect extends StatefulWidget {
@@ -1269,5 +1379,79 @@ class _SingleMutableAspectWState<A, T>
     final aspect = Aspect(widget._extract, key).of(context);
     final text = User.displayW(key.value, aspect, _buildCount += 1);
     return Text(text);
+  }
+}
+
+class _RemovableAspectW<A, T> extends StatefulWidget {
+  final Aspect<A, T> aspect;
+  const _RemovableAspectW(
+    this.aspect, {
+    @required ValueKey<String> key,
+  }) : super(key: key);
+
+  @override
+  _RemovableAspectWState<A, T> createState() => _RemovableAspectWState<A, T>();
+}
+
+class _RemovableAspectWState<A, T> extends State<_RemovableAspectW<A, T>> {
+  ValueKey<String> get key => widget.key as ValueKey<String>;
+
+  int _buildCount = 0;
+
+  @override
+  Widget build(BuildContext context) {
+    final aspect = widget.aspect.of(context);
+    final text = User.displayW(key.value, aspect, _buildCount += 1);
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Flexible(
+          child: FlatButton(
+            key: const Key('remove-aspect-button'),
+            onPressed: () => context.aspect.remove(widget.aspect),
+            child: const Text('remove-aspect'),
+          ),
+        ),
+        Flexible(child: Text(text)),
+      ],
+    );
+  }
+}
+
+class _RemovableAspectViaKeyW<A, T> extends StatefulWidget {
+  final Aspect<A, T> aspect;
+  const _RemovableAspectViaKeyW(
+    this.aspect, {
+    @required ValueKey<String> key,
+  }) : super(key: key);
+
+  @override
+  _RemovableAspectViaKeyWState<A, T> createState() =>
+      _RemovableAspectViaKeyWState<A, T>();
+}
+
+class _RemovableAspectViaKeyWState<A, T>
+    extends State<_RemovableAspectViaKeyW<A, T>> {
+  ValueKey<String> get key => widget.key as ValueKey<String>;
+
+  int _buildCount = 0;
+
+  @override
+  Widget build(BuildContext context) {
+    final aspect = widget.aspect.of(context);
+    final text = User.displayW(key.value, aspect, _buildCount += 1);
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Flexible(
+          child: FlatButton(
+            key: const Key('remove-aspect-via-key-button'),
+            onPressed: () => context.aspect.removeKey<T>(widget.aspect.key),
+            child: const Text('remove-aspect'),
+          ),
+        ),
+        Flexible(child: Text(text)),
+      ],
+    );
   }
 }

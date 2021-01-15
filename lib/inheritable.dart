@@ -1,3 +1,5 @@
+import 'dart:collection';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:meta/meta.dart';
@@ -261,6 +263,54 @@ class NoAspect<T> extends InheritableAspect<T> {
     return key != null ? this : NoAspect(fallback);
   }
 }
+
+// enum DiffAspectState {
+//   added,
+//   changed,
+//   removed,
+// }
+
+/// This is probably too specific and should not be part of the package
+/// But this can be part of the example
+// abstract class DiffAspect<T> extends InheritableAspect<T> {
+//   Set<SingleAspect<DiffAspectState, T>> get aspects;
+
+//   Set<SingleAspect<DiffAspectState, T>> _added;
+//   Set<SingleAspect<DiffAspectState, T>> get added;
+//   Set<SingleAspect<DiffAspectState, T>> _changed;
+//   Set<SingleAspect<DiffAspectState, T>> get changed;
+//   Set<SingleAspect<DiffAspectState, T>> _removed;
+//   Set<SingleAspect<DiffAspectState, T>> get removed;
+
+//   @override
+//   bool shouldNotify(T newValue, T oldValue) {
+//     bool notify = false;
+//     _added.clear();
+//     _changed.clear();
+//     _removed.clear();
+
+//     for (var aspect in aspects) {
+//       final state = aspect(newValue);
+//       if (state != aspect(oldValue)) {
+//         switch (state) {
+//           case DiffAspectState.added:
+//             _added.add(aspect);
+//             break;
+//           case DiffAspectState.changed:
+//             break;
+//           case DiffAspectState.removed:
+//             break;
+//           default:
+//             throw UnsupportedError('DiffAspectState: $state is not supported');
+//         }
+//         _changed.add(aspect);
+//         notify = true;
+//       }
+//     }
+
+//     return notify;
+//   }
+// }
 
 class _ValueAspect<T> extends InheritableAspect<T> {
   final InheritableAspect<T> delegate;
@@ -614,8 +664,13 @@ class Inheritable<T> extends InheritedWidget {
   /// does not have [Inheritable] of [T].
   ///
   /// {@endtemplate}
-  static Inheritable<T> of<T>(BuildContext context,
-      {InheritableAspect<T> aspect, bool rebuild = true, bool nullOk = true}) {
+  // TODO: if Inheritable is allowed to extend, provide Inheritable.inheriFrom
+  static Inheritable<T> of<T>(
+    BuildContext context, {
+    InheritableAspect<T> aspect,
+    bool rebuild = true,
+    bool nullOk = true,
+  }) {
     if (aspect == null)
       throw UnsupportedError(
         'Cannot depend on Inheritable<$T> without specifying an aspect',
@@ -636,8 +691,7 @@ class Inheritable<T> extends InheritedWidget {
       context.dependOnInheritedElement(
         result,
         aspect: aspect.ensureHasKey(
-          fallback: context.widget.key ??
-              Key('InheritableAspect<$T>(${aspect.debugLabel})'),
+          fallback: context.widget.key ?? Key('InheritableAspect<$T>($aspect)'),
         ),
       );
     }
@@ -645,11 +699,11 @@ class Inheritable<T> extends InheritedWidget {
     return result.widget;
   }
 
-  static _InheritableElement<T> _findInheritableSupportingAspect<T>(
-      BuildContext context, InheritableAspect<T> aspect) {
+  static _InheritableElement<T> _findEnclosingInheritableElement<T>(
+      BuildContext context) {
     if (context == null) return null;
 
-    _InheritableElement<T> start;
+    _InheritableElement<T> result;
 
     final inheritable =
         context.getElementForInheritedWidgetOfExactType<Inheritable<T>>()
@@ -664,25 +718,34 @@ class Inheritable<T> extends InheritedWidget {
           .getElementForInheritedWidgetOfExactType<_MutableInheritable<T>>();
 
       if (mutable == mutableAboveInheritable) {
-        start = inheritable;
+        result = inheritable;
       } else {
-        start = mutable;
+        result = mutable;
       }
     } else if (inheritable != null && mutable == null) {
-      start = inheritable;
+      result = inheritable;
     } else {
-      start = mutable;
+      result = mutable;
     }
 
-    if (start == null) return null;
+    return result;
+  }
 
-    if (start.widget.isSupportedAspect(aspect)) return start;
+  static _InheritableElement<T> _findInheritableSupportingAspect<T>(
+      BuildContext context, InheritableAspect<T> aspect) {
+    if (context == null) return null;
+
+    final element = _findEnclosingInheritableElement<T>(context);
+
+    if (element == null) return null;
+
+    if (element.widget.isSupportedAspect(aspect)) return element;
 
     // Go up ancestor, if there is any.
     /// Copied logic from [InheritedModel._findModels]
     // TODO: This might not actually be required, investigate, whether flutter devs added this on a fluke.
     Element parent;
-    start.visitAncestorElements((Element ancestor) {
+    element.visitAncestorElements((Element ancestor) {
       parent = ancestor;
       return false;
     });
@@ -705,11 +768,11 @@ class Inheritable<T> extends InheritedWidget {
     Widget child,
   }) : super(key: key, child: child);
 
-  /// Mutable variant of [Inheritable], users are to provide [update] to allow
+  /// Mutable variant of [Inheritable], users are to provide [onChange] to allow
   /// value to change.
   ///
-  /// However dependents have no say whether a supplied update should be
-  /// performed not.
+  /// However dependents have no say whether a supplied value should be
+  /// updated or not.
   const factory Inheritable.mutable({
     @required ValueChanged<T> onChange,
     T value,
@@ -766,6 +829,8 @@ mixin MutableInheritable<T> on Inheritable<T> {
   /// MutableInheritable.of<User>(context).value = User('new', 'user');
   /// ```
   static MutableInheritable<T> of<T>(BuildContext context) {
+    /// We don't use [Inheritable._findEnclosingInheritableElement<T>(context)]
+    /// here because [Inheritable] is not accepted in this case
     return context
         ?.getElementForInheritedWidgetOfExactType<_MutableInheritable<T>>()
         ?.widget as MutableInheritable<T>;
@@ -798,54 +863,64 @@ class _InheritableElement<T> extends InheritedElement {
   @override
   Inheritable<T> get widget => super.widget as Inheritable<T>;
 
+  @factory
+  Map<Key, InheritableAspect<T>> _newMap() {
+    return HashMap();
+  }
+
   bool removeAspect(Element dependent, InheritableAspect<T> aspect) {
     return removeKey(dependent, aspect?.key);
   }
 
-  bool removeAllAspects(Element dependent, Set<InheritableAspect<T>> aspects) {
+  bool removeAllAspects(Element dependent,
+      [Set<InheritableAspect<T>> aspects]) {
     return removeAllKeys(
       dependent,
-      {...?aspects?.map((a) => a.key)},
+      // if it's null, remove all aspects
+      aspects?.map((a) => a.key)?.toSet(),
     );
   }
 
   bool removeKey(Element dependent, Key key) {
-    final Map<Key, InheritableAspect<T>> dependencies =
-        getDependencies(dependent) as Map<Key, InheritableAspect<T>>;
+    final dependencies = getDependencies(dependent);
 
     if (dependencies == null || dependencies.isEmpty || key == null)
       return false;
 
+    assert(dependencies.containsKey(key));
     final removed = dependencies.remove(key) != null;
-
-    setDependencies(dependent, dependencies);
-
     return removed;
   }
 
-  bool removeAllKeys(Element dependent, Set<Key> keys) {
-    final Map<Key, InheritableAspect<T>> dependencies =
-        getDependencies(dependent) as Map<Key, InheritableAspect<T>>;
+  bool removeAllKeys(Element dependent, [Set<Key> keys]) {
+    if (keys != null && keys.isEmpty) return false;
 
-    if (dependencies == null ||
-        dependencies.isEmpty ||
-        keys == null ||
-        keys.isEmpty) return false;
+    final dependencies = getDependencies(dependent);
+
+    if (dependencies == null || dependencies.isEmpty) return false;
+
+    if (keys == null) {
+      /// Probably faster than clearing the map.
+      /// This also de-references the map and let's it be gc'd automatically
+      setDependencies(dependent, _newMap());
+      return true;
+    }
 
     keys = Set.of(keys);
 
     dependencies.removeWhere((k, _) => keys.remove(k));
 
-    setDependencies(dependent, dependencies);
-
     return keys.isEmpty;
   }
 
   @override
+  Map<Key, InheritableAspect<T>> getDependencies(Element dependent) {
+    return super.getDependencies(dependent) as Map<Key, InheritableAspect<T>>;
+  }
+
+  @override
   void updateDependencies(Element dependent, Object aspect) {
-    final Map<Key, InheritableAspect<T>> dependencies =
-        (getDependencies(dependent) as Map<Key, InheritableAspect<T>>) ??
-            <Key, InheritableAspect<T>>{};
+    final dependencies = getDependencies(dependent) ?? _newMap();
 
     if (aspect is InheritableAspect<T>) {
       // This allow replacing aspects by using same key
@@ -879,8 +954,7 @@ class _InheritableElement<T> extends InheritedElement {
 
   @override
   void notifyDependent(Inheritable<T> oldWidget, Element dependent) {
-    final Map<Key, InheritableAspect<T>> dependencies =
-        getDependencies(dependent) as Map<Key, InheritableAspect<T>>;
+    final dependencies = getDependencies(dependent);
     if (dependencies == null || dependencies.isEmpty) return;
     if (widget.updateShouldNotifyDependent(oldWidget, dependencies.values))
       dependent.didChangeDependencies();
@@ -969,38 +1043,105 @@ class _BuildContextAspect {
     });
   }
 
+  /// Removes the given [aspect] from enclosing [BuildContext].
+  ///
+  /// Returns whether removal was successful.
+  ///
+  /// `true`: Removed [aspect].
+  ///
+  /// `false`: Did not remove [aspect] or it did not already exist.
   bool remove<T>(InheritableAspect<T> aspect) {
     return _dispose((context) {
       final element =
-          context.getElementForInheritedWidgetOfExactType<Inheritable<T>>()
-              as _InheritableElement<T>;
+          Inheritable._findInheritableSupportingAspect<T>(context, aspect);
+
       return element?.removeAspect(context as Element, aspect) ?? false;
     });
   }
 
-  bool removeAll<T>(Set<InheritableAspect<T>> aspects) {
+  /// Remove the given set of [aspects] from enclosing [BuildContext]. If
+  /// unspecified, removes all previously registered aspects.
+  ///
+  /// Returns whether removal was successful.
+  ///
+  /// `true`: Removed given [aspects] or all of them.
+  ///
+  /// `false`: Removed some of the [aspects] or none of them.
+  // TODO: write test for context.removeAll
+  @visibleForTesting
+  bool removeAll<T>([Set<InheritableAspect<T>> aspects]) {
     return _dispose((context) {
-      final element =
-          context.getElementForInheritedWidgetOfExactType<Inheritable<T>>()
-              as _InheritableElement<T>;
-      return element?.removeAllAspects(context as Element, aspects) ?? false;
+      final _aspects = List.of(aspects);
+      for (var i = 0; i < _aspects.length; i++) {
+        final element = Inheritable._findInheritableSupportingAspect<T>(
+          context,
+          _aspects[i],
+        );
+        if (element != null) {
+          final supportedAspects = <InheritableAspect<T>>{
+            _aspects.removeAt(i),
+            for (var j = 0; j < _aspects.length; j++)
+              if (element.widget.isSupportedAspect(_aspects[j]))
+                _aspects.removeAt(j),
+          };
+          if (supportedAspects.length == 1) {
+            element.removeAspect(context as Element, supportedAspects.single);
+          } else {
+            element.removeAllAspects(context as Element, supportedAspects);
+          }
+        }
+      }
+
+      return _aspects.isEmpty;
     });
   }
 
+  /// Removes the aspect corresponding to given [key] from enclosing [BuildContext].
+  ///
+  /// Returns whether removal was successful.
+  ///
+  /// `true`: Removed aspect for [key].
+  ///
+  /// `false`: Did not remove aspect for [key] or it did not already exist.
+  @Deprecated(
+    'Does not support all implementations of Inheritable, only tries to '
+    'remove key from the first found Inheritable, this behaviour might be '
+    'surprising if the aspect was not even supported. '
+    'Prefer using [remove] instead',
+  )
   bool removeKey<T>(Key key) {
+    assert(
+      T != dynamic,
+      'Specify the exact type of Inheritable, dynamic is probably not what you want',
+    );
     return _dispose((context) {
-      final element =
-          context.getElementForInheritedWidgetOfExactType<Inheritable<T>>()
-              as _InheritableElement<T>;
+      final element = Inheritable._findEnclosingInheritableElement<T>(context);
       return element?.removeKey(context as Element, key) ?? false;
     });
   }
 
-  bool removeAllKeys<T>(Set<Key> keys) {
+  /// Remove aspects corresponding to the given set of [keys] from enclosing [BuildContext]. If
+  /// unspecified, removes all previously registered aspects.
+  ///
+  /// Returns whether removal was successful.
+  ///
+  /// `true`: Removed aspects for given [keys] or all of them.
+  ///
+  /// `false`: Removed some of the aspects for [keys] or none of them.
+  @Deprecated(
+    'Does not support all implementations of Inheritable, only tries to '
+    'remove keys from the first found Inheritable, this behaviour might be '
+    'surprising if the aspect was not even supported. '
+    'Prefer using [removeAll] instead.',
+  )
+  // TODO: write test for context.removeAllKeys
+  bool removeAllKeys<T>([Set<Key> keys]) {
+    assert(
+      T != dynamic,
+      'Specify the exact type of Inheritable, dynamic is probably not what you want',
+    );
     return _dispose((context) {
-      final element =
-          context.getElementForInheritedWidgetOfExactType<Inheritable<T>>()
-              as _InheritableElement<T>;
+      final element = Inheritable._findEnclosingInheritableElement<T>(context);
       return element?.removeAllKeys(context as Element, keys) ?? false;
     });
   }
