@@ -1,0 +1,19 @@
+name: inheritable
+description: Efficient by default zero-dependency declarative state/dependency management for flutter
+homepage: https://github.com/devkabiir/inheritable
+repository: https://github.com/devkabiir/inheritable
+issue_tracker: https://github.com/devkabiir/inheritable/issues
+version: 1.0.0-dev.1
+
+environment:
+  sdk: '>=2.9.0 <3.0.0'
+  flutter: '>=1.20.4 <1.26.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  meta: ^1.1.8
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter

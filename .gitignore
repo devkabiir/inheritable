@@ -1,0 +1,4 @@
+# Pb/Dart/Flutter reproducible artifacts
+.dart_tool
+build
+.packages
