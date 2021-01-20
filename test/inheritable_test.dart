@@ -1,3 +1,4 @@
+import 'package:inheritable/composition.dart';
 import 'package:inheritable/inheritable.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/widgets.dart';
@@ -1183,6 +1184,466 @@ Future<void> main([List<String> args]) async {
     expect(tester.takeException(), isNull);
     expect(originalState, findsOneWidget);
   });
+
+  testWidgets(
+      'Notifies dependents after debounce duration for changes [leading:false]',
+      (tester) async {
+    var user = User()
+      ..fname = 'first'
+      ..lname = 'last';
+
+    final debounceAspectW = _DebounceAspectW(
+      Aspect((User u) => u.lname, const Key('user-lname')),
+      key: const ValueKey('debounce-aspect'),
+      leading: false,
+    );
+
+    await tester.pumpStatefulWidget(
+      (context, setState) {
+        return Inheritable(
+          key: const Key('test-key'),
+          value: user,
+          child: Column(
+            key: const Key('column'),
+            children: [
+              FlatButton(
+                key: const Key('button-1'),
+                onPressed: () {
+                  setState(() {
+                    user = User()
+                      ..fname = 'first'
+                      ..lname = 'last2';
+                  });
+                },
+                child: const Text('change-state-1'),
+              ),
+              FlatButton(
+                key: const Key('button-2'),
+                onPressed: () {
+                  setState(() {
+                    user = User()
+                      ..fname = 'first'
+                      ..lname = 'last3';
+                  });
+                },
+                child: const Text('change-state-2'),
+              ),
+              Flexible(child: debounceAspectW),
+            ],
+          ),
+        );
+      },
+    );
+
+    final originalState = User.stateW('debounce-aspect', 'last', 1);
+    expect(tester.takeException(), isNull);
+    expect(originalState, findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('button-1')));
+    expect(user.lname, 'last2');
+    await tester.pump();
+
+    expect(tester.takeException(), isNull);
+    expect(originalState, findsOneWidget);
+
+    await tester.pump(_DebounceAspectW.defaultDelay);
+    await tester.tap(find.byKey(const Key('button-2')));
+    expect(user.lname, 'last3');
+    await tester.pump();
+    expect(originalState, findsNothing);
+    expect(User.stateW('debounce-aspect', 'last3', 2), findsOneWidget);
+
+    /// Exhaust the last timer
+    await tester.pump(_DebounceAspectW.defaultDelay);
+  });
+
+  testWidgets(
+      'Notifies dependents after debounce duration for changes [leading:true]',
+      (tester) async {
+    var user = User()
+      ..fname = 'first'
+      ..lname = 'last';
+
+    final debounceAspectW = _DebounceAspectW(
+      Aspect((User u) => u.lname, const Key('user-lname')),
+      key: const ValueKey('debounce-aspect'),
+      leading: true,
+    );
+
+    await tester.pumpStatefulWidget(
+      (context, setState) {
+        return Inheritable(
+          key: const Key('test-key'),
+          value: user,
+          child: Column(
+            key: const Key('column'),
+            children: [
+              FlatButton(
+                key: const Key('button-1'),
+                onPressed: () {
+                  setState(() {
+                    user = User()
+                      ..fname = 'first'
+                      ..lname = 'last2';
+                  });
+                },
+                child: const Text('change-state-1'),
+              ),
+              FlatButton(
+                key: const Key('button-2'),
+                onPressed: () {
+                  setState(() {
+                    user = User()
+                      ..fname = 'first'
+                      ..lname = 'last3';
+                  });
+                },
+                child: const Text('change-state-2'),
+              ),
+              FlatButton(
+                key: const Key('button-3'),
+                onPressed: () {
+                  setState(() {
+                    user = User()
+                      ..fname = 'first'
+                      ..lname = 'last4';
+                  });
+                },
+                child: const Text('change-state-3'),
+              ),
+              Flexible(child: debounceAspectW),
+            ],
+          ),
+        );
+      },
+    );
+
+    final originalState = User.stateW('debounce-aspect', 'last', 1);
+    expect(tester.takeException(), isNull);
+    expect(originalState, findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('button-1')));
+    expect(user.lname, 'last2');
+    await tester.pump();
+
+    expect(tester.takeException(), isNull);
+
+    /// Since leading:true, the first change is available immediately
+    expect(User.stateW('debounce-aspect', 'last2', 2), findsOneWidget);
+
+    await tester.pump(
+      Duration(milliseconds: _DebounceAspectW.defaultDelay.inMilliseconds ~/ 2),
+    );
+
+    await tester.tap(find.byKey(const Key('button-2')));
+    expect(user.lname, 'last3');
+    await tester.pump();
+    expect(User.stateW('debounce-aspect', 'last3', 3), findsNothing);
+    expect(User.stateW('debounce-aspect', 'last2', 2), findsOneWidget);
+
+    await tester.pump(_DebounceAspectW.defaultDelay);
+    await tester.tap(find.byKey(const Key('button-3')));
+    expect(user.lname, 'last4');
+    await tester.pump();
+    expect(User.stateW('debounce-aspect', 'last2', 2), findsNothing);
+    expect(User.stateW('debounce-aspect', 'last4', 3), findsOneWidget);
+
+    /// Exhaust the last timer
+    await tester.pump(_DebounceAspectW.defaultDelay);
+  });
+
+  testWidgets(
+      'Does not require exhausting timer for debounce duration for changes [leading:false]',
+      (tester) async {
+    var user = User()
+      ..fname = 'first'
+      ..lname = 'last';
+
+    final inlineDebounceAspectW = _InlineDebounceAspectW(
+      Aspect((User u) => u.lname, const Key('user-lname')),
+      key: const ValueKey('inline-debounce-aspect'),
+    );
+
+    await tester.pumpStatefulWidget(
+      (context, setState) {
+        return Inheritable(
+          key: const Key('test-key'),
+          value: user,
+          child: Column(
+            key: const Key('column'),
+            children: [
+              FlatButton(
+                key: const Key('button-1'),
+                onPressed: () {
+                  setState(() {
+                    user = User()
+                      ..fname = 'first'
+                      ..lname = 'last2';
+                  });
+                },
+                child: const Text('change-state-1'),
+              ),
+              FlatButton(
+                key: const Key('button-2'),
+                onPressed: () {
+                  setState(() {
+                    user = User()
+                      ..fname = 'first'
+                      ..lname = 'last3';
+                  });
+                },
+                child: const Text('change-state-2'),
+              ),
+              FlatButton(
+                key: const Key('button-3'),
+                onPressed: () {
+                  setState(() {
+                    user = User()
+                      ..fname = 'first'
+                      ..lname = 'last4';
+                  });
+                },
+                child: const Text('change-state-3'),
+              ),
+              Flexible(child: inlineDebounceAspectW),
+            ],
+          ),
+        );
+      },
+    );
+
+    final originalState = User.stateW('inline-debounce-aspect', 'last', 1);
+    expect(tester.takeException(), isNull);
+    expect(originalState, findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('button-1')));
+    expect(user.lname, 'last2');
+    await tester.pump();
+
+    expect(tester.takeException(), isNull);
+
+    await tester.pump(
+      Duration(
+          milliseconds:
+              _InlineDebounceAspectW.defaultDelay.inMilliseconds ~/ 2),
+    );
+
+    await tester.tap(find.byKey(const Key('button-2')));
+    expect(user.lname, 'last3');
+    await tester.pump();
+    expect(originalState, findsOneWidget);
+
+    await tester.pump(_InlineDebounceAspectW.defaultDelay);
+    await tester.tap(find.byKey(const Key('button-3')));
+    expect(user.lname, 'last4');
+    await tester.pump();
+    expect(User.stateW('inline-debounce-aspect', 'last4', 2), findsOneWidget);
+  });
+
+  testWidgets(
+      'Does not notify dependents after debounce duration for no-changes [leading:false]',
+      (tester) async {
+    var user = User()
+      ..fname = 'first'
+      ..lname = 'last';
+
+    final debounceAspectW = _DebounceAspectW(
+      Aspect((User u) => u.lname, const Key('user-lname')),
+      key: const ValueKey('debounce-aspect'),
+      leading: false,
+    );
+
+    await tester.pumpStatefulWidget(
+      (context, setState) {
+        return Inheritable(
+          key: const Key('test-key'),
+          value: user,
+          child: Column(
+            key: const Key('column'),
+            children: [
+              FlatButton(
+                key: const Key('button-1'),
+                onPressed: () {
+                  setState(() {
+                    user = User()
+                      ..fname = 'first'
+                      ..lname = 'last2';
+                  });
+                },
+                child: const Text('change-state-1'),
+              ),
+              FlatButton(
+                key: const Key('button-2'),
+                onPressed: () {
+                  setState(() {
+                    user = User()
+                      ..fname = 'first'
+                      ..lname = 'last3';
+                  });
+                },
+                child: const Text('change-state-2'),
+              ),
+              FlatButton(
+                key: const Key('button-3'),
+                onPressed: () {
+                  setState(() {
+                    user = User()
+                      ..fname = 'first'
+                      ..lname = 'last4';
+                  });
+                },
+                child: const Text('change-state-3'),
+              ),
+              FlatButton(
+                key: const Key('button-4'),
+                onPressed: () {
+                  setState(() {
+                    user = User()
+                      ..fname = 'first'
+                      ..lname = 'last';
+                  });
+                },
+                child: const Text('change-state-4'),
+              ),
+              Flexible(child: debounceAspectW),
+            ],
+          ),
+        );
+      },
+    );
+
+    final originalState = User.stateW('debounce-aspect', 'last', 1);
+    expect(tester.takeException(), isNull);
+    expect(originalState, findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('button-1')));
+    expect(user.lname, 'last2');
+    await tester.pump();
+
+    expect(tester.takeException(), isNull);
+    expect(originalState, findsOneWidget);
+
+    await tester.pump(
+      Duration(milliseconds: _DebounceAspectW.defaultDelay.inMilliseconds ~/ 2),
+    );
+
+    await tester.tap(find.byKey(const Key('button-2')));
+    expect(user.lname, 'last3');
+    await tester.pump();
+    expect(User.stateW('debounce-aspect', 'last3', 3), findsNothing);
+    expect(originalState, findsOneWidget);
+
+    /// Skips this change, timer has not exhausted
+    await tester.tap(find.byKey(const Key('button-3')));
+    expect(user.lname, 'last4');
+    await tester.pump();
+    expect(originalState, findsOneWidget);
+
+    /// Skips this change, because it's the same
+    await tester.pump(_DebounceAspectW.defaultDelay);
+    await tester.tap(find.byKey(const Key('button-4')));
+    expect(user.lname, 'last');
+    await tester.pump();
+    expect(originalState, findsOneWidget);
+  });
+
+  testWidgets(
+      'Does not notify dependents after debounce duration for no-changes [leading:true]',
+      (tester) async {
+    var user = User()
+      ..fname = 'first'
+      ..lname = 'last';
+
+    final debounceAspectW = _DebounceAspectW(
+      Aspect((User u) => u.lname, const Key('user-lname')),
+      key: const ValueKey('debounce-aspect'),
+      leading: true,
+    );
+
+    await tester.pumpStatefulWidget(
+      (context, setState) {
+        return Inheritable(
+          key: const Key('test-key'),
+          value: user,
+          child: Column(
+            key: const Key('column'),
+            children: [
+              FlatButton(
+                key: const Key('button-1'),
+                onPressed: () {
+                  setState(() {
+                    user = User()
+                      ..fname = 'first'
+                      ..lname = 'last2';
+                  });
+                },
+                child: const Text('change-state-1'),
+              ),
+              FlatButton(
+                key: const Key('button-2'),
+                onPressed: () {
+                  setState(() {
+                    user = User()
+                      ..fname = 'first'
+                      ..lname = 'last3';
+                  });
+                },
+                child: const Text('change-state-2'),
+              ),
+              FlatButton(
+                key: const Key('button-3'),
+                onPressed: () {
+                  setState(() {
+                    user = User()
+                      ..fname = 'first'
+                      ..lname = 'last4';
+                  });
+                },
+                child: const Text('change-state-3'),
+              ),
+              Flexible(child: debounceAspectW),
+            ],
+          ),
+        );
+      },
+    );
+
+    final originalState = User.stateW('debounce-aspect', 'last', 1);
+    expect(tester.takeException(), isNull);
+    expect(originalState, findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('button-1')));
+    expect(user.lname, 'last2');
+    await tester.pump();
+
+    expect(tester.takeException(), isNull);
+
+    /// Since leading:true, the first change is available immediately
+    expect(User.stateW('debounce-aspect', 'last2', 2), findsOneWidget);
+
+    await tester.pump(
+      Duration(milliseconds: _DebounceAspectW.defaultDelay.inMilliseconds ~/ 2),
+    );
+
+    await tester.tap(find.byKey(const Key('button-2')));
+    expect(user.lname, 'last3');
+    await tester.pump();
+    expect(User.stateW('debounce-aspect', 'last3', 3), findsNothing);
+    expect(User.stateW('debounce-aspect', 'last2', 2), findsOneWidget);
+
+    /// Skips this change, timer has not exhausted
+    await tester.tap(find.byKey(const Key('button-3')));
+    expect(user.lname, 'last4');
+    await tester.pump();
+    expect(User.stateW('debounce-aspect', 'last2', 2), findsOneWidget);
+
+    /// Skips this change, because it's the same
+    await tester.pump(_DebounceAspectW.defaultDelay);
+    await tester.tap(find.byKey(const Key('button-1')));
+    expect(user.lname, 'last2');
+    await tester.pump();
+    expect(User.stateW('debounce-aspect', 'last2', 2), findsOneWidget);
+  });
 }
 
 class _InlineListenableAspect extends StatefulWidget {
@@ -1453,5 +1914,103 @@ class _RemovableAspectViaKeyWState<A, T>
         Flexible(child: Text(text)),
       ],
     );
+  }
+}
+
+class _DebounceAspectW<A, T> extends StatefulWidget {
+  final Aspect<A, T> aspect;
+  final Duration duration;
+  final bool leading;
+  final ShouldNotify<A> compare;
+
+  static const defaultDelay = Duration(milliseconds: 200);
+  static bool _equals(Object a, Object b) {
+    return a != b;
+  }
+
+  const _DebounceAspectW(
+    this.aspect, {
+    @required ValueKey<String> key,
+    this.compare = _equals,
+    this.leading = false,
+    this.duration = defaultDelay,
+  }) : super(key: key);
+
+  @override
+  _DebounceAspectWState<A, T> createState() => _DebounceAspectWState<A, T>();
+}
+
+class _DebounceAspectWState<A, T> extends State<_DebounceAspectW<A, T>> {
+  ValueKey<String> get key => widget.key as ValueKey<String>;
+
+  int _buildCount = 0;
+  Aspect<A, T> aspect;
+
+  @override
+  void initState() {
+    super.initState();
+
+    aspect = widget.aspect.where(
+      debounce(
+        widget.duration,
+        leading: widget.leading,
+        shouldNotify: widget.compare,
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final aspect = this.aspect.of(context);
+
+    final text = User.displayW(key.value, aspect, _buildCount += 1);
+
+    return Text(text);
+  }
+}
+
+class _InlineDebounceAspectW<A, T> extends StatefulWidget {
+  final Aspect<A, T> aspect;
+  final Duration duration;
+  final ShouldNotify<A> compare;
+
+  static const defaultDelay = Duration(milliseconds: 200);
+  static bool _equals(Object a, Object b) {
+    return a != b;
+  }
+
+  const _InlineDebounceAspectW(
+    this.aspect, {
+    @required ValueKey<String> key,
+    this.compare = _equals,
+    this.duration = defaultDelay,
+  }) : super(key: key);
+
+  @override
+  _InlineDebounceAspectWState<A, T> createState() =>
+      _InlineDebounceAspectWState<A, T>();
+}
+
+class _InlineDebounceAspectWState<A, T>
+    extends State<_InlineDebounceAspectW<A, T>> {
+  ValueKey<String> get key => widget.key as ValueKey<String>;
+
+  int _buildCount = 0;
+
+  @override
+  Widget build(BuildContext context) {
+    final aspect = widget.aspect
+        .where(
+          debounce(
+            widget.duration,
+            leading: false,
+            shouldNotify: widget.compare,
+          ),
+        )
+        .of(context);
+
+    final text = User.displayW(key.value, aspect, _buildCount += 1);
+
+    return Text(text);
   }
 }
