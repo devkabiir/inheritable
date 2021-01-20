@@ -18,13 +18,6 @@ bool _equals(Object a, Object b) {
 /// rebuild without debouncing for [duration]. When using the leading value,
 /// save the aspect in a stateful variable.
 ///
-/// During testing, Exhaust the last timer, this is due to the fact that we support both,
-/// stateful debounce aspect and inline aspect, which means debounced aspects can be
-/// saved as stateful variables and also used inline in `build` method.
-///
-/// When used inline, [Timer] instances are reset automatically. When used in a
-/// stateful variable, they must be exhausted during testing
-///
 /// See
 ///   - [ShouldNotify]
 PredicateAspect<T> debounce<T>(

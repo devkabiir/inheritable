@@ -1252,9 +1252,6 @@ Future<void> main([List<String> args]) async {
     await tester.pump();
     expect(originalState, findsNothing);
     expect(User.stateW('debounce-aspect', 'last3', 2), findsOneWidget);
-
-    /// Exhaust the last timer
-    await tester.pump(_DebounceAspectW.defaultDelay);
   });
 
   testWidgets(
@@ -1347,9 +1344,6 @@ Future<void> main([List<String> args]) async {
     await tester.pump();
     expect(User.stateW('debounce-aspect', 'last2', 2), findsNothing);
     expect(User.stateW('debounce-aspect', 'last4', 3), findsOneWidget);
-
-    /// Exhaust the last timer
-    await tester.pump(_DebounceAspectW.defaultDelay);
   });
 
   testWidgets(
