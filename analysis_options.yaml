@@ -1,0 +1,169 @@
+analyzer:
+  strong-mode:
+    implicit-casts: false
+    implicit-dynamic: true
+  language:
+    strict-inference: false
+    strict-raw-types: true
+
+  errors:
+    todo: ignore
+    annotate_overrides: error
+    avoid_bool_literals_in_conditional_expressions: error
+    avoid_returning_null: error
+    avoid_returning_null_for_future: error
+    avoid_returning_null_for_void: error
+    avoid_returning_this: error
+    dead_code: error
+    prefer_relative_imports: error
+    sized_box_for_whitespace: error
+    override_on_non_overriding_member: error
+    unawaited_futures: error
+    unnecessary_await_in_return: error
+    unnecessary_brace_in_string_interps: error
+    unnecessary_const: error
+    unnecessary_getters_setters: error
+    unnecessary_lambdas: error
+    unnecessary_new: error
+    unnecessary_null_aware_assignments: error
+    unnecessary_null_in_if_null_operators: error
+    unnecessary_overrides: error
+    unnecessary_parenthesis: error
+    unnecessary_raw_strings: error
+    unnecessary_statements: error
+    unnecessary_string_escapes: error
+    unnecessary_string_interpolations: error
+    unnecessary_this: error
+    invariant_booleans: error
+    prefer_equal_for_default_values: error
+    prefer_const_constructors: error
+    prefer_const_constructors_in_immutables: error
+    prefer_const_declarations: error
+    prefer_const_literals_to_create_immutables: error
+    must_call_super: error
+    missing_return: error
+    strict_raw_type: error
+    no_runtimetype_tostring: error
+    non_const_call_to_literal_constructor: error
+    missing_enum_constant_in_switch: error
+    exhaustive_cases: error
+    # no_default_cases: error
+    no_duplicate_case_values: error
+    invalid_use_of_protected_member: error
+
+linter:
+  rules:
+    - annotate_overrides
+    - avoid_bool_literals_in_conditional_expressions
+    - avoid_returning_null
+    - avoid_returning_null_for_future
+    - avoid_returning_null_for_void
+    - avoid_returning_this
+    - directives_ordering
+    - invariant_booleans
+    - avoid_unnecessary_containers
+    - cancel_subscriptions
+    - cascade_invocations
+    - close_sinks
+    - always_put_required_named_parameters_first
+    - always_require_non_null_named_parameters
+    - sized_box_for_whitespace
+    - prefer_relative_imports
+    - unawaited_futures
+    - unnecessary_await_in_return
+    - unnecessary_brace_in_string_interps
+    - unnecessary_const
+    - unnecessary_getters_setters
+    - unnecessary_lambdas
+    - unnecessary_new
+    - unnecessary_null_aware_assignments
+    - unnecessary_null_in_if_null_operators
+    - unnecessary_overrides
+    - unnecessary_parenthesis
+    - unnecessary_raw_strings
+    - unnecessary_statements
+    - unnecessary_string_escapes
+    - unnecessary_string_interpolations
+    - unnecessary_this
+    - iterable_contains_unrelated_type
+    # - join_return_with_assignment
+    - leading_newlines_in_multiline_strings
+    - library_names
+    - library_prefixes
+    # - lines_longer_than_80_chars
+    - list_remove_unrelated_type
+    - literal_only_boolean_expressions
+    - missing_whitespace_between_adjacent_strings
+    - no_adjacent_strings_in_list
+    - exhaustive_cases
+    # - no_default_cases
+    - no_duplicate_case_values
+    - no_logic_in_create_state
+    - no_runtimeType_toString
+    - null_closures
+    # Built value is not picking up ProductBuilder fields so they have to be overridden
+    # In all classes extending it
+    # - overridden_fields
+    - package_names
+    - package_prefixed_library_names
+    - prefer_adjacent_string_concatenation
+    - prefer_asserts_in_initializer_lists
+    # - prefer_asserts_with_message
+    - prefer_collection_literals
+    - prefer_conditional_assignment
+    - prefer_const_constructors
+    - prefer_const_constructors_in_immutables
+    - prefer_const_declarations
+    - prefer_const_literals_to_create_immutables
+    # - prefer_constructors_over_static_methods
+    - prefer_contains
+    - prefer_equal_for_default_values
+    # - prefer_expression_function_bodies
+    - prefer_final_fields
+    # - prefer_final_in_for_each
+    - prefer_final_locals
+    - prefer_for_elements_to_map_fromIterable
+    - prefer_foreach
+    - prefer_function_declarations_over_variables
+    - prefer_generic_function_type_aliases
+    - prefer_if_elements_to_conditional_expressions
+    - prefer_if_null_operators
+    - prefer_initializing_formals
+    - prefer_inlined_adds
+    - prefer_int_literals
+    # - prefer_interpolation_to_compose_strings
+    - prefer_is_empty
+    - prefer_is_not_empty
+    - prefer_is_not_operator
+    - prefer_iterable_whereType
+    # - prefer_mixin
+    - prefer_null_aware_operators
+    - prefer_single_quotes
+    - prefer_spread_collections
+    - prefer_typing_uninitialized_variables
+    - prefer_void_to_null
+    - provide_deprecation_message
+    - slash_for_doc_comments
+    - sort_child_properties_last
+    # - sort_constructors_first
+    - sort_pub_dependencies
+    # - sort_unnamed_constructors_first
+    - test_types_in_equals
+    - throw_in_finally
+    # - type_annotate_public_apis
+    - type_init_formals
+    - use_function_type_syntax_for_parameters
+    - use_is_even_rather_than_modulo
+    - use_key_in_widget_constructors
+    - use_raw_strings
+    - use_rethrow_when_possible
+    - use_string_buffers
+    - use_to_and_as_if_applicable
+    # Nullabilty specific rules
+    # - use_late_for_private_fields_and_variables
+    # - cast_nullable_to_non_nullable
+    # - null_check_on_nullable_type_parameter
+    # - null_closures
+    # - unnecessary_null_checks
+    # - unnecessary_nullable_for_final_variable_declarations
+    # - use_late_for_private_fields_and_variables
