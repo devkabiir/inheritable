@@ -52,6 +52,13 @@ extension on WidgetTester {
       ),
     );
   }
+
+  /// Causes widgets to be removed/disposed
+  /// This has a similar effect to routing to a different page
+  Future<void> disposeWidgets() async {
+    await pumpWidget(const SizedBox());
+    return pumpAndSettle();
+  }
 }
 
 Future<void> main([List<String> args]) async {
@@ -919,6 +926,13 @@ Future<void> main([List<String> args]) async {
         .listenable
       ..addListener(didNotify);
 
+    addTearDown(() async {
+      await tester.disposeWidgets();
+      userListener
+        ..removeListener(didNotify)
+        ..dispose();
+    });
+
     final someChainedAspectW = _SomeChainedAspectW(
       {userListener},
       key: const ValueKey('some-chained-aspect'),
@@ -978,6 +992,13 @@ Future<void> main([List<String> args]) async {
         .listenable
       ..addListener(didNotify);
 
+    addTearDown(() async {
+      await tester.disposeWidgets();
+      userListener
+        ..removeListener(didNotify)
+        ..dispose();
+    });
+
     await tester.pumpStatefulWidget(
       (context, setState) {
         return Inheritable(
@@ -1034,6 +1055,10 @@ Future<void> main([List<String> args]) async {
     var user = User()
       ..fname = 'first'
       ..lname = 'last';
+
+    addTearDown(() async {
+      await tester.disposeWidgets();
+    });
 
     await tester.pumpStatefulWidget(
       (context, setState) {

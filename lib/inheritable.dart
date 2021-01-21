@@ -359,31 +359,30 @@ class _ValueAspect<T> extends InheritableAspect<T> {
 class _ListenableAspect<T> extends InheritableAspect<T>
     implements ValueListenable<T>, ChangeNotifier {
   final notifier = ChangeNotifier();
-  InheritableAspect<T> delegate;
+  InheritableAspect<T> _delegate;
 
-  _ListenableAspect(this.delegate)
-      : super('ListenableAspect of ${delegate.debugLabel}');
-
+  _ListenableAspect(this._delegate)
+      : super('ListenableAspect of ${_delegate.debugLabel}');
   @override
-  get key => delegate.key;
+  get key => _delegate.key;
 
   @override
   InheritableAspect<T> ensureHasKey({Key fallback}) {
-    delegate = delegate.ensureHasKey(fallback: fallback);
+    _delegate = _delegate.ensureHasKey(fallback: fallback);
     return this;
   }
 
   @override
-  get hashCode => delegate.hashCode;
+  get hashCode => _delegate.hashCode;
 
   @override
   operator ==(Object other) {
-    return delegate == other;
+    return _delegate == other;
   }
 
   @override
   bool shouldNotify(T newValue, T oldValue) {
-    if (delegate.shouldNotify(newValue, oldValue)) {
+    if (_delegate.shouldNotify(newValue, oldValue)) {
       _value = newValue;
       notifyListeners();
     }
@@ -448,12 +447,16 @@ class _ListenableAspect<T> extends InheritableAspect<T>
     return this;
   }
 
+  _ListenableAspect<T> copyWith({T value, InheritableAspect<T> delegate}) {
+    return _ListenableAspect(delegate ?? _delegate).._value = value ?? _value;
+  }
+
   @override
   void debugFillProperties(DiagnosticPropertiesBuilder properties) {
     super.debugFillProperties(properties);
 
     properties
-      ..add(ObjectFlagProperty('delegate', delegate, ifNull: 'no-delegate'))
+      ..add(ObjectFlagProperty('delegate', _delegate, ifNull: 'no-delegate'))
       ..add(
         FlagProperty(
           'hasListeners',
