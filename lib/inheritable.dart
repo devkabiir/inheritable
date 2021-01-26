@@ -417,26 +417,26 @@ extension InheritableAspectChainable<T> on InheritableAspect<T> {
 
 extension InheritableAspectIterable<T> on Iterable<InheritableAspect<T>> {
   /// Creates an aspect that notifies if _some_ of the aspects from this notify
-  InheritableAspect<T> some() {
+  _ValueAspect<T> some() {
     InheritableAspect<T> value = first;
     skip(1).forEach((element) {
       value = value | element;
     });
 
-    return value;
+    return value.value;
   }
 
   /// Creates an aspect that notifies only when _all_ of the aspects from this notify. You won't be
   /// notified if _some_ or none of the aspects have changed.
   ///
   /// __CAUTION__: This is very tricky to use.
-  InheritableAspect<T> all() {
+  _ValueAspect<T> all() {
     InheritableAspect<T> value = first;
     skip(1).forEach((element) {
       value = value & element;
     });
 
-    return value;
+    return value.value;
   }
 }
 
