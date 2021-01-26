@@ -825,9 +825,11 @@ class Aspect<A, T> extends InheritableAspect<T>
 extension ChainableAspectChianingFn<R, T> on Aspect<R, T> {
   /// Use [other] to map the already mapped value by [mapper] for notifications of [T]
   Aspect<RR, T> map<RR>(RR Function(R) other, [Key key]) {
-    return Aspect<RR, T>(
+    return Aspect<RR, T>.custom(
+      null,
       (t) => other(mapper(t)),
       key ?? this.key,
+      (_) => _defaultValue != null ? other?.call(_defaultValue?.call(_)) : null,
     );
   }
 
@@ -860,6 +862,7 @@ extension ChainableAspectChianingFn<R, T> on Aspect<R, T> {
           predicate(next: mapper(newValue), prev: mapper(oldValue)),
       mapper,
       key ?? this.key,
+      _defaultValue,
     );
   }
 
@@ -880,6 +883,7 @@ extension ChainableAspectChianingFn<R, T> on Aspect<R, T> {
           shouldNotify(newValue, oldValue) & (mapper(newValue) is RR),
       (t) => _whereType<T, R, RR>(t, mapper),
       key ?? this.key,
+      (_) => _defaultValue != null && R == RR ? _defaultValue(_) as RR : null,
     );
   }
 
@@ -890,6 +894,7 @@ extension ChainableAspectChianingFn<R, T> on Aspect<R, T> {
             other.shouldNotify(newValue, oldValue),
         mapper,
         key,
+        _defaultValue,
       );
 
   /// Returns an [InheritableAspect] that notifies when either [other] or `this` say [shouldNotify].
@@ -899,6 +904,7 @@ extension ChainableAspectChianingFn<R, T> on Aspect<R, T> {
             other.shouldNotify(newValue, oldValue),
         mapper,
         key,
+        _defaultValue,
       );
 }
 
@@ -913,7 +919,10 @@ extension WhereAspect<T> on PredicateAspect<T> {
 }
 
 typedef AspectWidgetBuilder<T> = Widget Function(
-    BuildContext context, T aspect);
+  BuildContext context,
+  T aspect,
+  Widget child,
+);
 
 @visibleForTesting
 class AspectListenableBuilder<A, T> extends StatelessWidget
@@ -935,6 +944,9 @@ class AspectBuilder<A, T> extends StatelessWidget {
   /// Widget builder that get's [aspect] fed into it
   final AspectWidgetBuilder<A> builder;
 
+  /// Child widget that doesn't depend on [aspect]
+  final Widget child;
+
   /// Default value when [aspect] returns `null`
   final A defaultValue;
 
@@ -952,6 +964,7 @@ class AspectBuilder<A, T> extends StatelessWidget {
   const AspectBuilder({
     @required this.aspect,
     @required this.builder,
+    this.child,
     this.defaultValue,
     Key key,
   })  : assert(aspect != null),
@@ -960,7 +973,7 @@ class AspectBuilder<A, T> extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return builder(context, aspect.of(context) ?? defaultValue);
+    return builder(context, aspect.of(context) ?? defaultValue, child);
   }
 }
 
