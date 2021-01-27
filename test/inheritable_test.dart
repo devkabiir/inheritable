@@ -1663,6 +1663,138 @@ Future<void> main([List<String> args]) async {
     await tester.pump();
     expect(User.stateW('debounce-aspect', 'last2', 2), findsOneWidget);
   });
+
+  testWidgets('Provides overridden value to aspect by aspect equality',
+      (tester) async {
+    var user = User()
+      ..fname = 'first'
+      ..lname = 'last';
+
+    final overriddenAspect =
+        Aspect((User u) => u.lname, const Key('user-lname'));
+
+    final overriddenAspectW = _OverridenAspectW(
+      overriddenAspect,
+      key: const ValueKey('overridden-aspect'),
+    );
+
+    final nonOverriddenAspectW = _OverridenAspectW(
+      Aspect((User u) => u.lname, const Key('user-lname2')),
+      key: const ValueKey('non-overridden-aspect'),
+    );
+
+    await tester.pumpStatefulWidget(
+      (context, setState) {
+        return Inheritable.override(
+          key: const Key('test-key'),
+          value: user,
+          overrides: {AspectOverride(overriddenAspect, 'overridden-last-name')},
+          strict: false,
+          child: Column(
+            key: const Key('column'),
+            children: [
+              FlatButton(
+                key: const Key('button'),
+                onPressed: () {
+                  setState(() {
+                    user = User()
+                      ..fname = 'first'
+                      ..lname = 'last2';
+                  });
+                },
+                child: const Text('change-state'),
+              ),
+              Flexible(child: overriddenAspectW),
+              Flexible(child: nonOverriddenAspectW),
+            ],
+          ),
+        );
+      },
+    );
+
+    final nonOverriddenOriginalState =
+        User.stateW('non-overridden-aspect', 'last', 1);
+    final overriddenOriginalState =
+        User.stateW('overridden-aspect', 'overridden-last-name', 1);
+    expect(tester.takeException(), isNull);
+    expect(nonOverriddenOriginalState, findsOneWidget);
+    expect(overriddenOriginalState, findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('button')));
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    expect(nonOverriddenOriginalState, findsNothing);
+    expect(User.stateW('non-overridden-aspect', 'last2', 2), findsOneWidget);
+    expect(overriddenOriginalState, findsOneWidget);
+  });
+
+  testWidgets('Provides overridden value to aspect by aspect key',
+      (tester) async {
+    var user = User()
+      ..fname = 'first'
+      ..lname = 'last';
+
+    final overriddenAspectW = _OverridenAspectW(
+      Aspect((User u) => u.lname, const Key('user-lname')),
+      key: const ValueKey('overridden-aspect'),
+    );
+
+    final nonOverriddenAspectW = _OverridenAspectW(
+      Aspect((User u) => u.lname, const Key('user-lname2')),
+      key: const ValueKey('non-overridden-aspect'),
+    );
+
+    await tester.pumpStatefulWidget(
+      (context, setState) {
+        return Inheritable.override(
+          key: const Key('test-key'),
+          value: user,
+          overrides: {
+            const AspectOverride<String, User>.key(
+              Key('user-lname'),
+              'overridden-last-name',
+            )
+          },
+          strict: false,
+          child: Column(
+            key: const Key('column'),
+            children: [
+              FlatButton(
+                key: const Key('button'),
+                onPressed: () {
+                  setState(() {
+                    user = User()
+                      ..fname = 'first'
+                      ..lname = 'last2';
+                  });
+                },
+                child: const Text('change-state'),
+              ),
+              Flexible(child: overriddenAspectW),
+              Flexible(child: nonOverriddenAspectW),
+            ],
+          ),
+        );
+      },
+    );
+
+    final nonOverriddenOriginalState =
+        User.stateW('non-overridden-aspect', 'last', 1);
+    final overriddenOriginalState =
+        User.stateW('overridden-aspect', 'overridden-last-name', 1);
+    expect(tester.takeException(), isNull);
+    expect(nonOverriddenOriginalState, findsOneWidget);
+    expect(overriddenOriginalState, findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('button')));
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    expect(nonOverriddenOriginalState, findsNothing);
+    expect(User.stateW('non-overridden-aspect', 'last2', 2), findsOneWidget);
+    expect(overriddenOriginalState, findsOneWidget);
+  });
 }
 
 class _InlineListenableAspect extends StatefulWidget {
@@ -1728,7 +1860,7 @@ class _NullAspectState<T> extends State<_NullAspect<T>> {
 
   @override
   Widget build(BuildContext context) {
-    final value = Inheritable.of<T>(context)?.value;
+    final value = Inheritable.of<T>(context)?.valueFor(null);
     final text = User.displayW(key.value, value, _buildCount += 1);
 
     return Text(text);
@@ -1940,11 +2072,11 @@ class _DebounceAspectW<A, T> extends StatefulWidget {
   final Aspect<A, T> aspect;
   final Duration duration;
   final bool leading;
-  final ShouldNotify<A> compare;
+  final PredicateAspect<A> compare;
 
   static const defaultDelay = Duration(milliseconds: 200);
-  static bool _equals(Object a, Object b) {
-    return a != b;
+  static bool _equals({Object prev, Object next}) {
+    return next != prev;
   }
 
   const _DebounceAspectW(
@@ -1991,11 +2123,11 @@ class _DebounceAspectWState<A, T> extends State<_DebounceAspectW<A, T>> {
 class _InlineDebounceAspectW<A, T> extends StatefulWidget {
   final Aspect<A, T> aspect;
   final Duration duration;
-  final ShouldNotify<A> compare;
+  final PredicateAspect<A> compare;
 
   static const defaultDelay = Duration(milliseconds: 200);
-  static bool _equals(Object a, Object b) {
-    return a != b;
+  static bool _equals({Object prev, Object next}) {
+    return next != prev;
   }
 
   const _InlineDebounceAspectW(
@@ -2030,6 +2162,30 @@ class _InlineDebounceAspectWState<A, T>
 
     final text = User.displayW(key.value, aspect, _buildCount += 1);
 
+    return Text(text);
+  }
+}
+
+class _OverridenAspectW<T> extends StatefulWidget {
+  final InheritableAspect<T> _aspect;
+  const _OverridenAspectW(
+    this._aspect, {
+    @required ValueKey<String> key,
+  }) : super(key: key);
+
+  @override
+  _OverridenAspectWState<T> createState() => _OverridenAspectWState<T>();
+}
+
+class _OverridenAspectWState<T> extends State<_OverridenAspectW<T>> {
+  ValueKey<String> get key => widget.key as ValueKey<String>;
+
+  int _buildCount = 0;
+
+  @override
+  Widget build(BuildContext context) {
+    final aspect = widget._aspect.of(context);
+    final text = User.displayW(key.value, aspect, _buildCount += 1);
     return Text(text);
   }
 }

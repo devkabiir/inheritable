@@ -1,9 +1,9 @@
 import 'dart:async';
 
-import 'package:inheritable/inheritable.dart';
+import 'inheritable.dart';
 
-bool _equals(Object a, Object b) {
-  return a != b;
+bool _equals({Object prev, Object next}) {
+  return next != prev;
 }
 
 /// Creates a [PredicateAspect] for [T] that skips all changes to [T] until
@@ -22,7 +22,7 @@ bool _equals(Object a, Object b) {
 ///   - [ShouldNotify]
 PredicateAspect<T> debounce<T>(
   Duration duration, {
-  ShouldNotify<T> shouldNotify = _equals,
+  PredicateAspect<T> shouldNotify = _equals,
   bool leading = false,
 }) {
   assert(leading != null);
@@ -58,7 +58,7 @@ PredicateAspect<T> debounce<T>(
     // Allows restarting timer for next run
     _exhausted = false;
 
-    if (shouldNotify(next, _lastValue)) {
+    if (shouldNotify(next: next, prev: _lastValue)) {
       _lastValue = next;
       return true;
     }
