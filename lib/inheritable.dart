@@ -1102,7 +1102,7 @@ class Inheritable<T> extends InheritedWidget {
     this.value,
     Key key,
     Widget child,
-  }) : super(key: key, child: child);
+  }) : super(key: key, child: child ?? const SizedBox.shrink());
 
   /// Convenience method to supply multiple [Inheritable]s holding different
   /// values to [child]
