@@ -119,7 +119,7 @@ Inheritable however has some advantages
 
 - Stop listening to changes at a later point.
 
-- Reuse aspects in multiple widgets. Once could create the following aspect and
+- Reuse aspects in multiple widgets. One could create the following aspect and
   pass it around to multiple widgets
   `var fname = Aspect((Useru) => u.fname)`
   The widget would then simply do `fname.of(context)` to get the value.
@@ -164,7 +164,7 @@ Inheritable however has some advantages
 - Get Static/Compile-time errors for aspects that couldn't exist on a value.
   Contrary to `InheritableModel`'s example use case instead of specifying
   `"fname"` aspect you specify `(User u) => u.fname` which wouldn't work if
-  `User` didn't have `fname`, but `"fname"` would've silently be allowed, until
+  `User` didn't have `fname`, whereas `"fname"` would've silently been allowed, until
   you get a runtime error.
 
 - Short-circuit unnecessary work.
@@ -172,7 +172,7 @@ Inheritable however has some advantages
 The idea behind `Inheritable` is that you specify your dependencies _"declaratively_"
 in a type-safe manner. More often than not I see dependencies being
 registered/declared/requested in a non-auto-completable fashion. If it's
-type-safe, it can be auto-completed
+type-safe, it can be auto-completed.
 
 Allow Presentation of a value via multiple widgets without causing unnecessary
 rebuilds. A `User` could be presented by `UFistName` & `ULastName` widgets. While
@@ -200,7 +200,7 @@ most cases. Allowing custom `Inheritable` implementations would only complicate 
 
 - Keys are useful but not required in most common cases
 
-- "Dependency" is used in the sense of state management, and no in the sense of
+- "Dependency" is used in the sense of state management, and not in the sense of
   dependency-injection. However is could be made possible to use `Inheritable`
   for such use cases
 
