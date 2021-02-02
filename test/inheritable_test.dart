@@ -29,7 +29,7 @@ class User {
       other is User && fname == other.fname && lname == other.lname;
 
   @override
-  int get hashCode => [fname, lname].hashCode;
+  int get hashCode => hashValues(fname, lname);
 
   @override
   String toString() {
@@ -58,6 +58,33 @@ extension on WidgetTester {
   Future<void> disposeWidgets() async {
     await pumpWidget(const SizedBox());
     return pumpAndSettle();
+  }
+}
+
+class Variant<T> extends TestVariant<T> {
+  @override
+  final Set<T> values;
+
+  Variant(this.values);
+
+  @override
+  String describeValue(T value) {
+    return value.toString();
+  }
+
+  T _currentValue;
+  T get currentValue => _currentValue;
+
+  @override
+  Future<T> setUp(T value) async {
+    final _prevValue = currentValue;
+    _currentValue = value;
+    return _prevValue;
+  }
+
+  @override
+  Future<void> tearDown(T value, T memento) async {
+    _currentValue = memento;
   }
 }
 
@@ -90,15 +117,15 @@ Future<void> main([List<String> args]) async {
       ..fname = 'first'
       ..lname = 'last';
 
-    const firstNameW = _SingleAspectW(
+    const firstNameW = _ExtractAspectW(
       User.firstName,
       key: ValueKey('first-name'),
     );
-    const lastNameW = _SingleAspectW(
+    const lastNameW = _ExtractAspectW(
       User.lastName,
       key: ValueKey('last-name'),
     );
-    const fullNameW = _SingleAspectW(
+    const fullNameW = _ExtractAspectW(
       User.fullName,
       key: ValueKey('full-name'),
     );
@@ -152,19 +179,19 @@ Future<void> main([List<String> args]) async {
       ..fname = 'first'
       ..lname = 'last';
 
-    const firstNameW = _SingleAspectW(
+    const firstNameW = _ExtractAspectW(
       User.firstName,
       key: ValueKey('first-name'),
     );
-    const lastNameW = _SingleAspectW(
+    const lastNameW = _ExtractAspectW(
       User.lastName,
       key: ValueKey('last-name'),
     );
-    const fullNameW = _SingleAspectW(
+    const fullNameW = _ExtractAspectW(
       User.fullName,
       key: ValueKey('full-name'),
     );
-    const bothFieldW = _SingleAspectW(
+    const bothFieldW = _ExtractAspectW(
       User.bothField,
       key: ValueKey('both-field'),
     );
@@ -768,6 +795,407 @@ Future<void> main([List<String> args]) async {
     expect(User.stateW('some-chained-aspect', user, 2), findsOneWidget);
   });
 
+  group('Inheritable.supply', () {
+    testWidgets(
+        '[strict:true] Notifies dependents for multiple Inheritables (unique-by-types)',
+        (tester) async {
+      final user = User()
+        ..fname = 'first'
+        ..lname = 'last';
+
+      const firstNameW = _ExtractMutableAspectW(
+        User.firstName,
+        key: ValueKey('first-name'),
+      );
+      final lastNameW = _ExtractMutableAspectW(
+        (String lname) => lname,
+        key: const ValueKey('last-name'),
+      );
+      final fullNameW = _ExtractMutableAspectW(
+        (int fullName) => fullName,
+        key: const ValueKey('full-name'),
+      );
+
+      await tester.pumpStatefulWidget(
+        (context, setState) {
+          return Inheritable.supply(
+            strict: true,
+            inheritables: [
+              Inheritable<User>(value: user),
+              Inheritable<String>(value: user.lname),
+              Inheritable<int>(value: User.fullName(user).hashCode),
+            ],
+            child: Column(
+              key: const Key('column'),
+              children: [
+                const Flexible(child: firstNameW),
+                Flexible(child: lastNameW),
+                Flexible(child: fullNameW),
+              ],
+            ),
+          );
+        },
+      );
+
+      expect(tester.takeException(), isNull);
+      expect(User.stateW('first-name', 'first', 1), findsOneWidget);
+      expect(User.stateW('last-name', 'last', 1), findsOneWidget);
+      expect(
+          User.stateW('full-name', 'first last'.hashCode, 1), findsOneWidget);
+    });
+
+    testWidgets(
+        '[strict:true] Throws for multiple Inheritables (unique-by-types) with duplicate type',
+        (tester) async {
+      final user = User()
+        ..fname = 'first'
+        ..lname = 'last';
+
+      const firstNameW = _ExtractMutableAspectW(
+        User.firstName,
+        key: ValueKey('first-name'),
+      );
+      final lastNameW = _ExtractMutableAspectW(
+        (String lname) => lname,
+        key: const ValueKey('last-name'),
+      );
+      final fullNameW = _ExtractMutableAspectW(
+        (int fullName) => fullName,
+        key: const ValueKey('full-name'),
+      );
+
+      await tester.pumpStatefulWidget(
+        (context, setState) {
+          return Inheritable.supply(
+            strict: true,
+            inheritables: [
+              Inheritable<User>(value: user),
+              Inheritable<User>(value: user),
+              Inheritable<String>(value: user.lname),
+              Inheritable<int>(value: User.fullName(user).hashCode),
+            ],
+            child: Column(
+              key: const Key('column'),
+              children: [
+                const Flexible(child: firstNameW),
+                Flexible(child: lastNameW),
+                Flexible(child: fullNameW),
+              ],
+            ),
+          );
+        },
+      );
+
+      expect(tester.takeException(), isA<StateError>());
+    });
+
+    testWidgets(
+        '[strict:true] Notifies dependents for multiple Inheritables (unique-by-keys)',
+        (tester) async {
+      final user = User()
+        ..fname = 'first'
+        ..lname = 'last';
+
+      const firstNameW = _ExtractMutableAspectW(
+        User.firstName,
+        key: ValueKey('first-name'),
+      );
+      const lastNameW = _ExtractMutableAspectW(
+        User.lastName,
+        key: ValueKey('last-name'),
+      );
+      const fullNameW = _ExtractMutableAspectW(
+        User.fullName,
+        key: ValueKey('full-name'),
+      );
+
+      await tester.pumpStatefulWidget(
+        (context, setState) {
+          return Inheritable.supply(
+            strict: true,
+            inheritables: [
+              Inheritable<User>(
+                key: const Key('key1'),
+                value: User()
+                  ..fname = 'will be'
+                  ..lname = 'overridden',
+              ),
+              Inheritable<User>(
+                key: const Key('key2'),
+                value: User()
+                  ..fname = 'will also be'
+                  ..lname = 'overridden',
+              ),
+              Inheritable<User>(key: const Key('key3'), value: user),
+            ],
+            child: Column(
+              key: const Key('column'),
+              children: const [
+                Flexible(child: firstNameW),
+                Flexible(child: lastNameW),
+                Flexible(child: fullNameW),
+              ],
+            ),
+          );
+        },
+      );
+
+      expect(tester.takeException(), isNull);
+
+      expect(User.stateW('first-name', 'first', 1), findsOneWidget);
+      expect(User.stateW('last-name', 'last', 1), findsOneWidget);
+      expect(User.stateW('full-name', 'first last', 1), findsOneWidget);
+    });
+
+    testWidgets(
+        '[strict:true] Throws for multiple Inheritables (unique-by-keys) with duplicate key',
+        (tester) async {
+      final user = User()
+        ..fname = 'first'
+        ..lname = 'last';
+
+      const firstNameW = _ExtractMutableAspectW(
+        User.firstName,
+        key: ValueKey('first-name'),
+      );
+      const lastNameW = _ExtractMutableAspectW(
+        User.lastName,
+        key: ValueKey('last-name'),
+      );
+      const fullNameW = _ExtractMutableAspectW(
+        User.fullName,
+        key: ValueKey('full-name'),
+      );
+
+      await tester.pumpStatefulWidget(
+        (context, setState) {
+          return Inheritable.supply(
+            strict: true,
+            inheritables: [
+              Inheritable<User>(
+                key: const Key('key1'),
+                value: User()
+                  ..fname = 'will be'
+                  ..lname = 'overridden',
+              ),
+              Inheritable<User>(
+                key: const Key('key1'),
+                value: User()
+                  ..fname = 'will also be'
+                  ..lname = 'overridden',
+              ),
+              Inheritable<User>(key: const Key('key3'), value: user),
+            ],
+            child: Column(
+              key: const Key('column'),
+              children: const [
+                Flexible(child: firstNameW),
+                Flexible(child: lastNameW),
+                Flexible(child: fullNameW),
+              ],
+            ),
+          );
+        },
+      );
+
+      expect(tester.takeException(), isA<StateError>());
+    });
+
+    testWidgets(
+        '[strict:true] Notifies dependents for multiple Inheritables (unique-by-nullable-keys)',
+        (tester) async {
+      final user = User()
+        ..fname = 'first'
+        ..lname = 'last';
+
+      const firstNameW = _ExtractMutableAspectW(
+        User.firstName,
+        key: ValueKey('first-name'),
+      );
+      const lastNameW = _ExtractMutableAspectW(
+        User.lastName,
+        key: ValueKey('last-name'),
+      );
+      const fullNameW = _ExtractMutableAspectW(
+        User.fullName,
+        key: ValueKey('full-name'),
+      );
+
+      await tester.pumpStatefulWidget(
+        (context, setState) {
+          return Inheritable.supply(
+            strict: true,
+            inheritables: [
+              Inheritable<User>(
+                key: const Key('key1'),
+                value: User()
+                  ..fname = 'will be'
+                  ..lname = 'overridden',
+              ),
+              Inheritable<User>(
+                key: const Key('key2'),
+                value: User()
+                  ..fname = 'will also be'
+                  ..lname = 'overridden',
+              ),
+              Inheritable<User>(value: user),
+            ],
+            child: Column(
+              key: const Key('column'),
+              children: const [
+                Flexible(child: firstNameW),
+                Flexible(child: lastNameW),
+                Flexible(child: fullNameW),
+              ],
+            ),
+          );
+        },
+      );
+
+      expect(tester.takeException(), isNull);
+
+      expect(User.stateW('first-name', 'first', 1), findsOneWidget);
+      expect(User.stateW('last-name', 'last', 1), findsOneWidget);
+      expect(User.stateW('full-name', 'first last', 1), findsOneWidget);
+    });
+
+    testWidgets(
+        '[strict:true] Throws for multiple Inheritables (unique-by-nullable-keys) with duplicate null key',
+        (tester) async {
+      final user = User()
+        ..fname = 'first'
+        ..lname = 'last';
+
+      const firstNameW = _ExtractMutableAspectW(
+        User.firstName,
+        key: ValueKey('first-name'),
+      );
+      const lastNameW = _ExtractMutableAspectW(
+        User.lastName,
+        key: ValueKey('last-name'),
+      );
+      const fullNameW = _ExtractMutableAspectW(
+        User.fullName,
+        key: ValueKey('full-name'),
+      );
+
+      await tester.pumpStatefulWidget(
+        (context, setState) {
+          return Inheritable.supply(
+            strict: true,
+            inheritables: [
+              Inheritable<User>(
+                key: const Key('key1'),
+                value: User()
+                  ..fname = 'will be'
+                  ..lname = 'overridden',
+              ),
+              Inheritable<User>(
+                value: User()
+                  ..fname = 'will also be'
+                  ..lname = 'overridden',
+              ),
+              Inheritable<User>(value: user),
+            ],
+            child: Column(
+              key: const Key('column'),
+              children: const [
+                Flexible(child: firstNameW),
+                Flexible(child: lastNameW),
+                Flexible(child: fullNameW),
+              ],
+            ),
+          );
+        },
+      );
+
+      expect(tester.takeException(), isA<StateError>());
+    });
+
+    testWidgets(
+        '[strict:false] Notifies dependents for multiple Inheritables (unique-by-types)',
+        (tester) async {
+      expect(true, isTrue);
+    });
+
+    testWidgets(
+        '[strict:true] Notifies dependents using [by] construct for multiple Inheritables (unique-by-keys)',
+        (tester) async {
+      final user = User()
+        ..fname = 'first'
+        ..lname = 'last';
+
+      final firstNameW = _AspectW(
+        const Aspect(User.firstName).by((w) => w.key == const Key('key1')),
+        key: const ValueKey('first-name'),
+      );
+      final lastNameW = _AspectW(
+        const Aspect(User.lastName).by((w) => w.key == const Key('key2')),
+        key: const ValueKey('last-name'),
+      );
+      final fullNameW = _AspectW(
+        const Aspect(User.fullName).by((w) => w.key == const Key('key3')),
+        key: const ValueKey('full-name'),
+      );
+
+      await tester.pumpStatefulWidget(
+        (context, setState) {
+          return Inheritable.supply(
+            strict: true,
+            inheritables: [
+              Inheritable<User>(
+                key: const Key('key1'),
+                value: User()
+                  ..fname = 'this will be first'
+                  ..lname = 'not used',
+              ),
+              Inheritable<User>(
+                key: const Key('key2'),
+                value: User()
+                  ..fname = 'not used'
+                  ..lname = 'this will be last',
+              ),
+              Inheritable<User>(key: const Key('key3'), value: user),
+            ],
+            child: Column(
+              key: const Key('column'),
+              children: [
+                Flexible(child: firstNameW),
+                Flexible(child: lastNameW),
+                Flexible(child: fullNameW),
+              ],
+            ),
+          );
+        },
+      );
+
+      expect(tester.takeException(), isNull);
+
+      expect(
+          User.stateW('first-name', 'this will be first', 1), findsOneWidget);
+      expect(User.stateW('last-name', 'this will be last', 1), findsOneWidget);
+      expect(User.stateW('full-name', 'first last', 1), findsOneWidget);
+    });
+
+    testWidgets(
+        '[strict:false] Notifies dependents for multiple Inheritables (unique-by-keys)',
+        (tester) async {
+      expect(true, isTrue);
+    });
+
+    testWidgets(
+        'Can supply [strict:true] multiple Inheritable.mutable (unique-by-types)',
+        (tester) async {
+      expect(true, isTrue);
+    }, skip: true);
+
+    testWidgets(
+        'Can supply [strict:true] multiple Inheritable.mutable (unique-by-keys)',
+        (tester) async {
+      expect(true, isTrue);
+    }, skip: true);
+  });
+
   testWidgets(
       'Notifies parent for mutable value change [parent-rejects-change]',
       (tester) async {
@@ -775,15 +1203,15 @@ Future<void> main([List<String> args]) async {
       ..fname = 'first'
       ..lname = 'last';
 
-    const firstNameW = _SingleMutableAspectW(
+    const firstNameW = _ExtractMutableAspectW(
       User.firstName,
       key: ValueKey('first-name'),
     );
-    const lastNameW = _SingleMutableAspectW(
+    const lastNameW = _ExtractMutableAspectW(
       User.lastName,
       key: ValueKey('last-name'),
     );
-    const fullNameW = _SingleMutableAspectW(
+    const fullNameW = _ExtractMutableAspectW(
       User.fullName,
       key: ValueKey('full-name'),
     );
@@ -793,7 +1221,7 @@ Future<void> main([List<String> args]) async {
         return Inheritable<User>.mutable(
           key: const Key('test-key'),
           value: user,
-          onChange: (_) {},
+          onMutate: Inheritable.ignoreMutation,
           child: Column(
             key: const Key('column'),
             children: [
@@ -844,15 +1272,15 @@ Future<void> main([List<String> args]) async {
       ..fname = 'first'
       ..lname = 'last';
 
-    const firstNameW = _SingleMutableAspectW(
+    const firstNameW = _ExtractMutableAspectW(
       User.firstName,
       key: ValueKey('first-name'),
     );
-    const lastNameW = _SingleMutableAspectW(
+    const lastNameW = _ExtractMutableAspectW(
       User.lastName,
       key: ValueKey('last-name'),
     );
-    const fullNameW = _SingleMutableAspectW(
+    const fullNameW = _ExtractMutableAspectW(
       User.fullName,
       key: ValueKey('full-name'),
     );
@@ -862,7 +1290,7 @@ Future<void> main([List<String> args]) async {
         return Inheritable<User>.mutable(
           key: const Key('test-key'),
           value: user,
-          onChange: (next) {
+          onMutate: (next) {
             setState(() {
               user = next;
             });
@@ -1867,18 +2295,18 @@ class _NullAspectState<T> extends State<_NullAspect<T>> {
   }
 }
 
-class _SingleAspectW<A, T> extends StatefulWidget {
-  final SingleAspect<A, T> _extract;
-  const _SingleAspectW(
+class _ExtractAspectW<A, T> extends StatefulWidget {
+  final ExtractAspect<A, T> _extract;
+  const _ExtractAspectW(
     this._extract, {
     @required ValueKey<String> key,
   }) : super(key: key);
 
   @override
-  _SingleAspectWState<A, T> createState() => _SingleAspectWState<A, T>();
+  _ExtractAspectWState<A, T> createState() => _ExtractAspectWState<A, T>();
 }
 
-class _SingleAspectWState<A, T> extends State<_SingleAspectW<A, T>> {
+class _ExtractAspectWState<A, T> extends State<_ExtractAspectW<A, T>> {
   ValueKey<String> get key => widget.key as ValueKey<String>;
 
   int _buildCount = 0;
@@ -1892,7 +2320,7 @@ class _SingleAspectWState<A, T> extends State<_SingleAspectW<A, T>> {
 }
 
 class _SomeAspectW<T> extends StatefulWidget {
-  final Set<InheritableAspect<T>> _aspects;
+  final Set<DependableAspect<T>> _aspects;
   const _SomeAspectW(
     this._aspects, {
     @required ValueKey<String> key,
@@ -1916,7 +2344,7 @@ class _SomeAspectWState<T> extends State<_SomeAspectW<T>> {
 }
 
 class _SomeChainedAspectW<T> extends StatefulWidget {
-  final Set<InheritableAspect<T>> _aspects;
+  final Set<DependableAspect<T>> _aspects;
   const _SomeChainedAspectW(
     this._aspects, {
     @required ValueKey<String> key,
@@ -1968,20 +2396,20 @@ class _ChainableAspectWState<T> extends State<_ChainableAspectW<T>> {
   }
 }
 
-class _SingleMutableAspectW<A, T> extends StatefulWidget {
-  final SingleAspect<A, T> _extract;
-  const _SingleMutableAspectW(
+class _ExtractMutableAspectW<A, T> extends StatefulWidget {
+  final ExtractAspect<A, T> _extract;
+  const _ExtractMutableAspectW(
     this._extract, {
     @required ValueKey<String> key,
   }) : super(key: key);
 
   @override
-  _SingleMutableAspectWState<A, T> createState() =>
-      _SingleMutableAspectWState<A, T>();
+  _ExtractMutableAspectWState<A, T> createState() =>
+      _ExtractMutableAspectWState<A, T>();
 }
 
-class _SingleMutableAspectWState<A, T>
-    extends State<_SingleMutableAspectW<A, T>> {
+class _ExtractMutableAspectWState<A, T>
+    extends State<_ExtractMutableAspectW<A, T>> {
   ValueKey<String> get key => widget.key as ValueKey<String>;
 
   int _buildCount = 0;
@@ -2185,6 +2613,31 @@ class _OverridenAspectWState<T> extends State<_OverridenAspectW<T>> {
   @override
   Widget build(BuildContext context) {
     final aspect = widget._aspect.of(context);
+    final text = User.displayW(key.value, aspect, _buildCount += 1);
+    return Text(text);
+  }
+}
+
+class _AspectW<T> extends StatefulWidget {
+  final InheritableAspect<T> aspect;
+  const _AspectW(
+    this.aspect, {
+    @required ValueKey<String> key,
+  }) : super(key: key);
+
+  @override
+  _AspectWState<T> createState() => _AspectWState<T>();
+}
+
+class _AspectWState<T> extends State<_AspectW<T>> {
+  ValueKey<String> get key => widget.key as ValueKey<String>;
+
+  int _buildCount = 0;
+
+  @override
+  Widget build(BuildContext context) {
+    final aspect = widget.aspect.of(context);
+
     final text = User.displayW(key.value, aspect, _buildCount += 1);
     return Text(text);
   }
