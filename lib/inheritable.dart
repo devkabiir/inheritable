@@ -215,7 +215,14 @@ abstract class InheritableAspect<T> with Diagnosticable {
       ..add(ObjectFlagProperty('key', key,
           ifNull: 'no-key', ifPresent: key.toString()));
   }
+}
 
+/// Allow using `this` as a dependency, which means, dependent widgets will be
+/// have option to rebuild whenever this aspect changes.
+///
+/// Most notable implementation is [Aspect] which is immutable dependency on an
+/// [Inheritable] of [T]. On the contrary [Aspect.mutable]
+mixin DependableAspect<T> on InheritableAspect<T> {
   /// Ensure that this [InheritableAspect] has a valid [key]. This is to make
   /// sure aspects that are intended to behave differently using for same
   /// [BuildContext] don't override each other.
@@ -269,14 +276,7 @@ abstract class InheritableAspect<T> with Diagnosticable {
   @visibleForOverriding
   @protected
   InheritableAspect<T> ensureHasKey({Key fallback});
-}
 
-/// Allow using `this` as a dependency, which means, dependent widgets will be
-/// have option to rebuild whenever this aspect changes.
-///
-/// Most notable implementation is [Aspect] which is immutable dependency on an
-/// [Inheritable] of [T]. On the contrary [Aspect.mutable]
-mixin DependableAspect<T> on InheritableAspect<T> {
   /// Called by [Inheritable] of [T] when it decides to notify it's dependents.
   /// This is only called after [Inheritable] of [T] has been updated at least
   /// once. For the first time, aka "init" phase, [satisfiedBy] is called instead.
@@ -364,18 +364,6 @@ mixin DelegatingAspect<T> on ClonableAspect<T> {
         .add(StringProperty('delegate', delegate.toString(), quoted: false));
   }
 
-  @override
-  DelegatingAspect<T> ensureHasKey({Key fallback}) {
-    return clone(delegate: delegate.ensureHasKey(fallback: fallback));
-  }
-
-  /// Convenience method to create a new copy of [delegate] with key. This is
-  /// useful in [clone] implementations where [key] is always delegated to [delegate].
-  InheritableAspect<T> ensureDelegateHasKey(
-      [InheritableAspect<T> replacement, Key key]) {
-    return (replacement ?? delegate).ensureHasKey(fallback: key);
-  }
-
   /// Convenience method to create a new copy of [delegate] with key. This is
   /// useful in [clone] implementations where [key] is always delegated to [delegate].
   ///
@@ -439,6 +427,26 @@ mixin DelegatingDependableAspect<T>
     }
 
     return false;
+  }
+
+  @override
+  DelegatingAspect<T> ensureHasKey({Key fallback}) {
+    final dynamic delegate = this.delegate;
+    if (delegate is DependableAspect<T>)
+      return clone(delegate: delegate.ensureHasKey(fallback: fallback));
+
+    return clone(key: key ?? fallback);
+  }
+
+  /// Convenience method to create a new copy of [delegate] with key. This is
+  /// useful in [clone] implementations where [key] is always delegated to [delegate].
+  InheritableAspect<T> ensureDelegateHasKey(
+      [InheritableAspect<T> replacement, Key key]) {
+    final dynamic delegate = replacement ?? this.delegate;
+    if (delegate is DependableAspect<T>)
+      return delegate.ensureHasKey(fallback: key);
+
+    throw UnsupportedError('Delegate is not DependableAspect: $delegate');
   }
 }
 
@@ -734,7 +742,7 @@ class _ListenableAspect<T> extends EquatableAspect<T>
 
   @override
   DelegatingAspect<T> ensureHasKey({Key fallback}) {
-    _delegate = _delegate.ensureHasKey(fallback: fallback);
+    _delegate = ensureDelegateHasKey(null, fallback);
     return this;
   }
 
@@ -960,11 +968,6 @@ class AspectMutation<T> extends EquatableAspect<T>
     inheritable?.valueFor
         ?.call<ValueChanged<T>>(this, _defaultTransform)
         ?.call(mutate(inheritable));
-  }
-
-  @override
-  InheritableAspect<T> ensureHasKey({Key fallback}) {
-    return clone(key: key ?? fallback);
   }
 
   @override
@@ -1246,7 +1249,9 @@ class Inheritable<T> extends InheritedWidget {
       }
     }
 
-    if (rebuild) {
+    assert(!rebuild || aspect is DependableAspect<T>,
+        'Only DependableAspect can cause rebuilds');
+    if (rebuild && aspect is DependableAspect<T>) {
       context.dependOnInheritedElement(
         result,
         aspect: aspect.ensureHasKey(

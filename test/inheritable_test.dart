@@ -1394,6 +1394,7 @@ Future<void> main([List<String> args]) async {
 
     final originalState = User.stateW('some-chained-aspect', user, 1);
     expect(tester.takeException(), isNull);
+    expect(userListener.hasListeners, isTrue);
     expect(notifyCount, isZero);
     expect(originalState, findsOneWidget);
 
@@ -1466,6 +1467,7 @@ Future<void> main([List<String> args]) async {
     );
 
     expect(tester.takeException(), isNull);
+    expect(userListener.hasListeners, isTrue);
     expect(notifyCount, 0);
     expect(find.text('ValueListenableBuilder: null'), findsOneWidget);
 
@@ -2223,6 +2225,357 @@ Future<void> main([List<String> args]) async {
     expect(User.stateW('non-overridden-aspect', 'last2', 2), findsOneWidget);
     expect(overriddenOriginalState, findsOneWidget);
   });
+
+  testWidgets(
+      'Provides overridden value to [mutable] aspect by aspect equality without Inheritable.mutable in scope',
+      (tester) async {
+    final user = User()
+      ..fname = 'first'
+      ..lname = 'last';
+
+    final overriddenAspect = AspectMutation(
+      (w) => User()
+        ..fname = 'new-fname'
+        ..lname = 'new-lname',
+    );
+
+    final overriddenAspectW = _OverridenMutableAspectW(
+      overriddenAspect,
+      key: const ValueKey('overridden-mutable-aspect'),
+    );
+
+    final overriddenOnMutate = <String>[];
+
+    await tester.pumpStatefulWidget(
+      (context, setState) {
+        return Inheritable.override(
+          key: const Key('test-key'),
+          value: user,
+          overrides: {
+            AspectOverride.mutation(
+              overriddenAspect,
+              (u) => setState(() => overriddenOnMutate
+                  .add('call ${overriddenOnMutate.length + 1}')),
+            )
+          },
+          strict: false,
+          child: Column(
+            key: const Key('column'),
+            children: [
+              Flexible(child: overriddenAspectW),
+            ],
+          ),
+        );
+      },
+    );
+
+    final overriddenOriginalState =
+        User.stateW('overridden-mutable-aspect', '', 1);
+    expect(tester.takeException(), isNull);
+    expect(overriddenOnMutate, []);
+    expect(overriddenOriginalState, findsOneWidget);
+
+    await tester.tap(find.byKey(Key('${overriddenAspectW.key}-button')));
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    expect(overriddenOriginalState, findsOneWidget);
+    expect(overriddenOnMutate, ['call 1']);
+  });
+
+  testWidgets(
+      'Provides overridden value to [mutable] aspect by key without Inheritable.mutable in scope',
+      (tester) async {
+    final user = User()
+      ..fname = 'first'
+      ..lname = 'last';
+
+    final overriddenAspect = AspectMutation(
+      (w) => User()
+        ..fname = 'new-fname'
+        ..lname = 'new-lname',
+      const Key('overridden-aspect'),
+    );
+
+    final overriddenAspectW = _OverridenMutableAspectW(
+      overriddenAspect,
+      key: const ValueKey('overridden-mutable-aspect'),
+    );
+
+    final overriddenOnMutate = <String>[];
+
+    await tester.pumpStatefulWidget(
+      (context, setState) {
+        return Inheritable.override(
+          key: const Key('test-key'),
+          value: user,
+          overrides: {
+            AspectOverride<ValueChanged<User>, User>.key(
+              overriddenAspect.key,
+              (u) => setState(() => overriddenOnMutate
+                  .add('call ${overriddenOnMutate.length + 1}')),
+            )
+          },
+          strict: false,
+          child: Column(
+            key: const Key('column'),
+            children: [
+              Flexible(child: overriddenAspectW),
+            ],
+          ),
+        );
+      },
+    );
+
+    final overriddenOriginalState =
+        User.stateW('overridden-mutable-aspect', '', 1);
+    expect(tester.takeException(), isNull);
+    expect(overriddenOnMutate, []);
+    expect(overriddenOriginalState, findsOneWidget);
+
+    await tester.tap(find.byKey(Key('${overriddenAspectW.key}-button')));
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    expect(overriddenOriginalState, findsOneWidget);
+    expect(overriddenOnMutate, ['call 1']);
+  });
+
+  testWidgets(
+      'Provides overridden value to [mutable] aspect by aspect equality without Inheritable.mutable in scope',
+      (tester) async {
+    final user = User()
+      ..fname = 'first'
+      ..lname = 'last';
+
+    final overriddenAspect = AspectMutation(
+      (w) => User()
+        ..fname = 'new-fname'
+        ..lname = 'new-lname',
+    );
+
+    final overriddenAspectW = _OverridenMutableAspectW(
+      overriddenAspect,
+      key: const ValueKey('overridden-mutable-aspect'),
+    );
+
+    final overriddenOnMutate = <String>[];
+
+    await tester.pumpStatefulWidget(
+      (context, setState) {
+        return Inheritable.override(
+          key: const Key('test-key'),
+          value: user,
+          overrides: {
+            AspectOverride.mutation(
+              overriddenAspect,
+              (u) => setState(() => overriddenOnMutate
+                  .add('call ${overriddenOnMutate.length + 1}')),
+            )
+          },
+          strict: false,
+          child: Column(
+            key: const Key('column'),
+            children: [
+              Flexible(child: overriddenAspectW),
+            ],
+          ),
+        );
+      },
+    );
+
+    final overriddenOriginalState =
+        User.stateW('overridden-mutable-aspect', '', 1);
+    expect(tester.takeException(), isNull);
+    expect(overriddenOnMutate, []);
+    expect(overriddenOriginalState, findsOneWidget);
+
+    await tester.tap(find.byKey(Key('${overriddenAspectW.key}-button')));
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    expect(overriddenOriginalState, findsOneWidget);
+    expect(overriddenOnMutate, ['call 1']);
+  });
+
+  testWidgets('Throws when [mutable] aspect is used to access value',
+      (tester) async {
+    final user = User()
+      ..fname = 'first'
+      ..lname = 'last';
+
+    final overriddenAspect = AspectMutation(
+      (w) => User()
+        ..fname = 'new-fname'
+        ..lname = 'new-lname',
+      const Key('overridden-aspect'),
+    );
+
+    await tester.pumpStatefulWidget(
+      (context, setState) {
+        return Text(
+          overriddenAspect.of(context).toString(),
+        );
+      },
+    );
+
+    expect(tester.takeException(), isA<UnsupportedError>());
+  });
+
+  testWidgets('Allows providing aspect default value', (tester) async {
+    final aspect = const Aspect(User.firstName).withDefault('first-name');
+
+    await tester.pumpStatefulWidget(
+      (context, setState) {
+        return Text(aspect.of(context));
+      },
+    );
+
+    expect(tester.takeException(), isNull);
+    expect(find.text('first-name'), findsOneWidget);
+  });
+
+  testWidgets('Allows providing aspect default value via context',
+      (tester) async {
+    final aspect = const Aspect(User.firstName).withDefaultFor(
+        (context) => Theme.of(context).appBarTheme.runtimeType.toString());
+
+    await tester.pumpStatefulWidget(
+      (context, setState) {
+        return Text(aspect.of(context));
+      },
+    );
+
+    expect(tester.takeException(), isNull);
+    expect(find.text('AppBarTheme'), findsOneWidget);
+  });
+
+  testWidgets('Allows providing default value at use', (tester) async {
+    const aspect = Aspect(User.firstName);
+
+    await tester.pumpStatefulWidget(
+      (context, setState) {
+        return Text(aspect.of(context, defaultValue: 'use-time'));
+      },
+    );
+
+    expect(tester.takeException(), isNull);
+    expect(find.text('use-time'), findsOneWidget);
+  });
+
+  testWidgets('Uses aspect default value in chaining [map]', (tester) async {
+    final aspect = const Aspect(User.firstName).withDefault('first-name');
+
+    await tester.pumpStatefulWidget(
+      (context, setState) {
+        return Text(
+            aspect.map((fname) => fname.hashCode.toString()).of(context));
+      },
+    );
+
+    expect(tester.takeException(), isNull);
+    expect(find.text('first-name'.hashCode.toString()), findsOneWidget);
+  });
+
+  testWidgets('Override aspect with [>] operator', (tester) async {
+    const aspect = Aspect(User.firstName);
+
+    await tester.pumpStatefulWidget(
+      (context, setState) {
+        return Inheritable.override<User, User>(
+          strict: false,
+          overrides: {
+            aspect > 'overridden-value',
+          },
+          child: Builder(
+            builder: (context) => Text(aspect.of(context)),
+          ),
+        );
+      },
+    );
+
+    expect(tester.takeException(), isNull);
+    expect(find.text('overridden-value'), findsOneWidget);
+  });
+
+  testWidgets('Override aspect with [>] operator overrides [map] construct',
+      (tester) async {
+    const aspect = Aspect(User.firstName);
+
+    await tester.pumpStatefulWidget(
+      (context, setState) {
+        return Inheritable.override<User, User>(
+          strict: false,
+          overrides: {
+            aspect > 'overridden-value',
+          },
+          child: Builder(
+            builder: (context) =>
+                Text(aspect.map((s) => s.hashCode.toString()).of(context)),
+          ),
+        );
+      },
+    );
+
+    expect(tester.takeException(), isNull);
+    expect(find.text('overridden-value'.hashCode.toString()), findsNothing);
+    expect(find.text('overridden-value'), findsOneWidget);
+  });
+
+  testWidgets(
+      'Override aspect with [>] operator overrides aspect default value',
+      (tester) async {
+    final aspect = const Aspect(User.firstName).withDefault('first-name');
+
+    await tester.pumpStatefulWidget(
+      (context, setState) {
+        return Inheritable.override<User, User>(
+          strict: false,
+          overrides: {
+            aspect > 'overridden-value',
+          },
+          child: Builder(
+            builder: (context) => Text(aspect.of(context)),
+          ),
+        );
+      },
+    );
+
+    expect(tester.takeException(), isNull);
+    expect(find.text('overridden-value'), findsOneWidget);
+  });
+
+  testWidgets(
+      'Override aspect with [>] operator overrides [map] construct & aspect default value',
+      (tester) async {
+    final aspect = const Aspect(User.firstName).withDefault('first-name');
+
+    await tester.pumpStatefulWidget(
+      (context, setState) {
+        return Inheritable.override<User, User>(
+          strict: false,
+          overrides: {
+            aspect > 'overridden-value',
+          },
+          child: Builder(
+            builder: (context) =>
+                Text(aspect.map((s) => s.hashCode.toString()).of(context)),
+          ),
+        );
+      },
+    );
+
+    expect(tester.takeException(), isNull);
+    expect(find.text('overridden-value'.hashCode.toString()), findsNothing);
+    expect(find.text('first-name'.hashCode.toString()), findsNothing);
+    expect(find.text('first-name'), findsNothing);
+    expect(find.text('overridden-value'), findsOneWidget);
+  });
+
+  testWidgets('Throws on missing Inheritable.mutable onMutate', (tester) async {
+    expect(
+        () => Inheritable.mutable(onMutate: null), throwsA(isAssertionError));
+  });
 }
 
 class _InlineListenableAspect extends StatefulWidget {
@@ -2615,6 +2968,35 @@ class _OverridenAspectWState<T> extends State<_OverridenAspectW<T>> {
     final aspect = widget._aspect.of(context);
     final text = User.displayW(key.value, aspect, _buildCount += 1);
     return Text(text);
+  }
+}
+
+class _OverridenMutableAspectW<T> extends StatefulWidget {
+  final MutableInheritableAspect<T> _aspect;
+  const _OverridenMutableAspectW(
+    this._aspect, {
+    @required ValueKey<String> key,
+  }) : super(key: key);
+
+  @override
+  _OverridenMutableAspectWState<T> createState() =>
+      _OverridenMutableAspectWState<T>();
+}
+
+class _OverridenMutableAspectWState<T>
+    extends State<_OverridenMutableAspectW<T>> {
+  ValueKey<String> get key => widget.key as ValueKey<String>;
+
+  int _buildCount = 0;
+
+  @override
+  Widget build(BuildContext context) {
+    final text = User.displayW(key.value, '', _buildCount += 1);
+    return FlatButton(
+      key: Key('${widget.key}-button'),
+      onPressed: () => widget._aspect.apply(context),
+      child: Text(text),
+    );
   }
 }
 
