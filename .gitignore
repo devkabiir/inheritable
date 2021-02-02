@@ -2,3 +2,4 @@
 .dart_tool
 build
 .packages
+coverage
