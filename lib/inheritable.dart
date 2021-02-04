@@ -1577,7 +1577,7 @@ class Inheritable<T> extends InheritedWidget {
       transform ??= aspect.transform;
     }
 
-    return _value != null ? (transform ?? _defaultTransform)(_value) : null;
+    return (transform ?? _defaultTransform)(_value);
   }
 
   /// Whether given [aspect] is supported by this. By default all non-null
