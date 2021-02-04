@@ -1723,7 +1723,7 @@ class _MutableInheritable<T> extends Inheritable<T>
       value: value ?? _value,
       overrides: overrides != null
           ? Inheritable.newOverridesSet(overrides)
-          : overrides,
+          : _overrides,
       onMutate: onMutate ?? this.onMutate,
       child: child ?? this.child,
     );
