@@ -77,14 +77,13 @@ class Variant<T> extends TestVariant<T> {
 
   @override
   Future<T> setUp(T value) async {
-    final _prevValue = currentValue;
     _currentValue = value;
-    return _prevValue;
+    return null;
   }
 
   @override
-  Future<void> tearDown(T value, T memento) async {
-    _currentValue = memento;
+  Future<void> tearDown(T value, Object memento) async {
+    _currentValue = null;
   }
 }
 
