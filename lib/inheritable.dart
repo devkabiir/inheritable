@@ -65,7 +65,10 @@ abstract class AspectOverride<A, T> {
   ///
   /// It is also possible to override [AspectMutation] by specifying a matching
   /// [key] and a [ValueChanged] override.
-  const factory AspectOverride.key(Key key, A override) =
+  ///
+  /// In case the [key] is used to match a [AspectMutation], [mutation] must
+  /// also be `true`.
+  const factory AspectOverride.key(Key key, A override, {bool mutation}) =
       _AspectOverrideByKey<A, T>;
 
   /// Override [onMutate] for [aspect]
@@ -123,8 +126,12 @@ class _AspectOverrideByKey<A, T> extends AspectOverride<A, T> {
   /// Key by which to override [InheritableAspect]
   final Key key;
 
-  const _AspectOverrideByKey(this.key, A override)
+  /// Flag to specify whether [AspectMutation] is required.
+  final bool mutation;
+
+  const _AspectOverrideByKey(this.key, A override, {this.mutation = false})
       : assert(key != null),
+        assert(mutation != null),
         super.constant(override);
 
   @override
@@ -132,7 +139,10 @@ class _AspectOverrideByKey<A, T> extends AspectOverride<A, T> {
 
   @override
   operator ==(Object other) {
-    return key == other || (other is InheritableAspect<T> && key == other.key);
+    return key == other ||
+        (other is InheritableAspect<T> &&
+            key == other.key &&
+            (mutation == other is MutableInheritableAspect<T>));
   }
 }
 
@@ -931,6 +941,15 @@ mixin MutableInheritableAspect<T> on InheritableAspect<T> {
       'Only InheritableAspects that are not MutableInheritableAspect can be used as dependency.',
     );
   }
+}
+
+extension ReplaceMutableInheritableAspect<T> on InheritableAspect<T> {
+  /// Creates an [AspectMutation] that unconditionally requests [T] to be
+  /// replaced by [next].
+  ///
+  /// The newly created [AspectMutation] uses `this.key`, which means it is
+  /// possible to override it by using `AspectOverride.key`.
+  AspectMutation<T> replace(T next) => AspectMutation((_) => next, key);
 }
 
 // TODO: an Inheritable.mutable can be used to deny updates from certain
