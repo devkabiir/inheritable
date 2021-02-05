@@ -1092,6 +1092,7 @@ class Aspect<A, T> extends EquatableAspect<T>
   }
 }
 
+// TODO: Extract out TransformingAspect applicable extension methods
 extension AspectChianingFn<R, T> on Aspect<R, T> {
   /// Use [other] to map the already mapped value by [mapper] for notifications of [T]
   Aspect<RR, T> map<RR>(RR Function(R) other, [Key key]) {
@@ -1150,9 +1151,7 @@ extension AspectChianingFn<R, T> on Aspect<R, T> {
     );
   }
 
-  /// {@template InheritableAspect.override}
-  /// Override value produced by this with [value]
-  /// {@endtemplate}
+  /// {@macro InheritableAspect.override}
   AspectOverride<R, T> operator >(R value) {
     return AspectOverride(this, value);
   }
@@ -1508,7 +1507,7 @@ class Inheritable<T> extends InheritedWidget {
     SubType value,
     Key key,
     Set<AspectOverride<Object, T>> overrides,
-    ValueChanged<SubType> onMutate,
+    ValueChanged<T> onMutate,
     Widget child,
     bool strict = true,
   }) {
@@ -1519,13 +1518,16 @@ class Inheritable<T> extends InheritedWidget {
     );
 
     assert(
-      !strict || T != SubType || overrides != null && overrides.isNotEmpty,
+      !strict ||
+          T != SubType ||
+          onMutate != null ||
+          overrides != null && overrides.isNotEmpty,
       'Provided value is not allowed in strict mode',
     );
 
     if (onMutate != null) {
       return _MutableInheritable<T>._(
-        onMutate: (sup) => onMutate(sup as SubType),
+        onMutate: onMutate,
         value: value,
         key: key,
         overrides: newOverridesSet(overrides),

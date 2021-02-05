@@ -88,6 +88,70 @@ class Variant<T> extends TestVariant<T> {
 }
 
 Future<void> main([List<String> args]) async {
+  testWidgets('Throws for unsatisfied dependency', (tester) async {
+    final defaultObj = Object();
+    var dependency = defaultObj;
+
+    await tester.pumpStatefulWidget(
+      (context, setState) => dependency = Inheritable.of<User>(context,
+          aspect: const NoAspect<User>(null), nullOk: false),
+    );
+
+    expect(tester.takeException(), isA<StateError>());
+    expect(dependency, defaultObj);
+  });
+
+  testWidgets('Returns null for unsatisfied dependency [nullOk]',
+      (tester) async {
+    final defaultObj = Object();
+    var dependency = defaultObj;
+
+    await tester.pumpStatefulWidget(
+      (context, setState) {
+        dependency = Inheritable.of<User>(context,
+            aspect: const NoAspect<User>(null), nullOk: true);
+        return Text(
+            (dependency as Inheritable<User>)?.valueFor(null) ?? 'nothing');
+      },
+    );
+
+    expect(tester.takeException(), isNull);
+    expect(find.text('nothing'), findsOneWidget);
+    expect(dependency, isNull);
+  });
+
+  testWidgets('Throws for unsatisfied mutable dependency', (tester) async {
+    final defaultObj = Object();
+    var dependency = defaultObj;
+
+    await tester.pumpStatefulWidget(
+      (context, setState) => dependency = Inheritable.of<User>(context,
+          aspect: const NoAspect<User>(null), nullOk: false, mutable: true),
+    );
+
+    expect(tester.takeException(), isA<StateError>());
+    expect(dependency, defaultObj);
+  });
+
+  testWidgets('Returns null for unsatisfied dependency [nullOk]',
+      (tester) async {
+    final defaultObj = Object();
+    var dependency = defaultObj;
+
+    await tester.pumpStatefulWidget(
+      (context, setState) {
+        dependency = Inheritable.of<User>(context,
+            aspect: const NoAspect<User>(null), nullOk: true, mutable: true);
+        return Text(
+            (dependency as Inheritable<User>)?.valueFor(null) ?? 'nothing');
+      },
+    );
+
+    expect(tester.takeException(), isNull);
+    expect(find.text('nothing'), findsOneWidget);
+    expect(dependency, isNull);
+  });
+
   testWidgets('Renders without error', (tester) async {
     await tester.pumpWidget(
       MaterialApp(
