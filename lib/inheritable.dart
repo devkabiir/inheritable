@@ -1508,18 +1508,24 @@ class Inheritable<T> extends InheritedWidget {
     SubType value,
     Key key,
     Set<AspectOverride<Object, T>> overrides,
-    ValueChanged<SubType> onChange,
+    ValueChanged<SubType> onMutate,
     Widget child,
     bool strict = true,
   }) {
     assert(
-      !strict || T != SubType && T != dynamic,
+      T != Object && T != dynamic,
+      'Underspecified types are most likely a mistake. This can happen when forgetting to pass type arguments to Inheritable constructors. '
+      'Try being more specific using Inheritable<T>() or Inheritable<T>.mutable or Inheritable.override<T, TT>.',
+    );
+
+    assert(
+      !strict || T != SubType || overrides != null && overrides.isNotEmpty,
       'Provided value is not allowed in strict mode',
     );
 
-    if (onChange != null) {
+    if (onMutate != null) {
       return _MutableInheritable<T>._(
-        onMutate: (sup) => onChange(sup as SubType),
+        onMutate: (sup) => onMutate(sup as SubType),
         value: value,
         key: key,
         overrides: newOverridesSet(overrides),
