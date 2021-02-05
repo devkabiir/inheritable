@@ -574,6 +574,37 @@ extension InheritableAspectChainable<T> on DependableAspect<T> {
     );
   }
 
+  Aspect<T, T> withPatch(T Function(T) patch, [Key key]) {
+    return Aspect._(
+      ({next, prev, aspect}) => didUpdateWidget(prev: prev, next: next),
+      (t) => t,
+      key ?? this.key,
+      null,
+      patch,
+    );
+  }
+
+  /// Add default value to this, if no satisfiable [Inheritable] of [T] can be found
+  Aspect<T, T> withDefault(T value, [Key key]) {
+    return Aspect._(
+      ({next, prev, aspect}) => didUpdateWidget(prev: prev, next: next),
+      (t) => t,
+      key ?? this.key,
+      (_) => value,
+    );
+  }
+
+  /// Add default value to this based on provided [BuildContext], if no satisfiable [Inheritable] of [T] can be found.
+  Aspect<T, T> withDefaultFor(DefaultInheritableAspectOfContext<T> fn,
+      [Key key]) {
+    return Aspect._(
+      ({next, prev, aspect}) => didUpdateWidget(prev: prev, next: next),
+      (t) => t,
+      key ?? this.key,
+      fn,
+    );
+  }
+
   /// {@template InheritableAspect.where}
   /// Use [predicate] whether to be notified for [T]
   /// {@endtemplate}
@@ -605,6 +636,17 @@ extension InheritableAspectChainable<T> on DependableAspect<T> {
   /// {@endtemplate}
   AspectOverride<T, T> operator >(T value) {
     return AspectOverride(this, value);
+  }
+
+  /// {@template InheritableAspect.override.mutation}
+  /// Override mutation callback for this. This overrides the [onMutate]
+  /// for [Inheritab.mutable] or [Inheritable.onMutate] for any aspects
+  /// identified by `this.key`.
+  ///
+  /// The created [AspectOverride] depends on `this.key`, which if `null` it will throw.
+  /// {@endtemplate}
+  AspectOverride<ValueChanged<T>, T> operator <(ValueChanged<T> onMutate) {
+    return AspectOverride.key(key, onMutate, mutation: true);
   }
 
   /// Returns an [InheritableAspect] that notifies when [other] and `this` both say [shouldNotify].
@@ -943,13 +985,22 @@ mixin MutableInheritableAspect<T> on InheritableAspect<T> {
   }
 }
 
-extension ReplaceMutableInheritableAspect<T> on InheritableAspect<T> {
+extension ReplaceMutableInheritable<T> on InheritableAspect<T> {
   /// Creates an [AspectMutation] that unconditionally requests [T] to be
   /// replaced by [next].
   ///
   /// The newly created [AspectMutation] uses `this.key`, which means it is
   /// possible to override it by using `AspectOverride.key`.
   AspectMutation<T> replace(T next) => AspectMutation((_) => next, key);
+}
+
+extension PatchMutableInheritable<A, T> on PatchableAspect<A, T> {
+  /// Creates an [AspectMutation] that unconditionally requests [A] of [T] to be
+  /// replaced by [next].
+  ///
+  /// The newly created [AspectMutation] uses `this.key`, which means it is
+  /// possible to override it by using `AspectOverride.key`.
+  AspectMutation<T> replace(A next) => AspectMutation((_) => patch(next), key);
 }
 
 // TODO: an Inheritable.mutable can be used to deny updates from certain
@@ -997,12 +1048,21 @@ class AspectMutation<T> extends EquatableAspect<T>
   }
 }
 
+mixin PatchableAspect<A, T> on TransformingAspect<A, T> {
+  /// Given a new [A] of [T], return the patched [T]
+  T patch(A next);
+}
+
 class Aspect<A, T> extends EquatableAspect<T>
-    with ClonableAspect<T>, DependableAspect<T>, TransformingAspect<A, T> {
+    with
+        ClonableAspect<T>,
+        DependableAspect<T>,
+        TransformingAspect<A, T>,
+        PatchableAspect<A, T> {
   @override
   final Key key;
   final A Function(T) mapper;
-
+  final T Function(A) _patch;
   final DidUpdateWidget<T> _didUpdateWidgetImpl;
   final DefaultInheritableAspectOfContext<A> _defaultValue;
 
@@ -1010,8 +1070,16 @@ class Aspect<A, T> extends EquatableAspect<T>
   /// for any changes of [A] produced by [fn].
   const Aspect(A Function(T) fn, [Key key]) : this._(null, fn, key, null);
 
+  /// Create an aspect [A] of [T] using [transform],
+  /// which can optionaly be later patched using [patch].
+  const Aspect.patchable({
+    @required T Function(A) patch,
+    Key key,
+    A Function(T) transform,
+  }) : this._(null, transform, key, null, patch);
+
   const Aspect._(this._didUpdateWidgetImpl, this.mapper,
-      [this.key, this._defaultValue])
+      [this.key, this._defaultValue, this._patch])
       : assert(mapper != null),
         super('Aspect');
 
@@ -1031,6 +1099,13 @@ class Aspect<A, T> extends EquatableAspect<T>
   @override
   A transform(T value) {
     return mapper(value);
+  }
+
+  @override
+  T patch(A next) {
+    if (_patch != null) return _patch(next);
+
+    throw StateError('This aspect is not Patchable');
   }
 
   /// {@macro InheritableAspect.of}
@@ -1071,10 +1146,11 @@ class Aspect<A, T> extends EquatableAspect<T>
   Aspect<A, T> clone({
     Key key,
     final A Function(T) mapper,
+    final T Function(A) patch,
     final DidUpdateWidget<T> didUpdateWidget,
     final DefaultInheritableAspectOfContext<A> defaultValue,
   }) {
-    if ([key, mapper, didUpdateWidget, defaultValue]
+    if ([key, mapper, patch, didUpdateWidget, defaultValue]
         .whereType<Object>()
         .isEmpty) return this;
 
@@ -1083,6 +1159,7 @@ class Aspect<A, T> extends EquatableAspect<T>
       mapper ?? this.mapper,
       key ?? this.key,
       defaultValue ?? _defaultValue,
+      patch ?? _patch,
     );
   }
 
@@ -1102,6 +1179,11 @@ extension AspectChianingFn<R, T> on Aspect<R, T> {
       key ?? this.key,
       (_) => _defaultValue != null ? other?.call(_defaultValue?.call(_)) : null,
     );
+  }
+
+  /// Allow patching [R] of [T] using [patch]
+  Aspect<R, T> withPatch(T Function(R) patch, [Key key]) {
+    return clone(key: key, patch: patch);
   }
 
   /// Add default value to this, if no satisfiable [Inheritable] of [T] can be found
