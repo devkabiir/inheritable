@@ -6,6 +6,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:meta/meta.dart';
 
+export 'extensions.dart';
+
 /// Given [T] extract certain aspect [A] from [it] and return that.
 ///
 /// You can return anything as long as it satisfies type [A]
@@ -574,7 +576,7 @@ extension InheritableAspectChainable<T> on DependableAspect<T> {
     );
   }
 
-  Aspect<T, T> withPatch(T Function(T) patch, [Key key]) {
+  Aspect<T, T> withPatch(AspectPatch<T, T> patch, [Key key]) {
     return Aspect._(
       ({next, prev, aspect}) => didUpdateWidget(prev: prev, next: next),
       (t) => t,
@@ -985,6 +987,34 @@ mixin MutableInheritableAspect<T> on InheritableAspect<T> {
   }
 }
 
+/// Allow mutating multiple [Inheritable]s at the same time while deferring
+/// their updates to dependents.
+abstract class AspectBatch {
+  /// Identifier for this batch.
+  Key get key;
+
+  /// Inheritables satisfying this batch's aspects.
+  Set<Inheritable<Object>> get inheritables;
+
+  /// InheritableAspects participating in this batch.
+  Set<InheritableAspect<Object>> get aspects;
+
+  /// Apply this batch to [context]
+  void apply(BuildContext context) {
+    /// For every aspect, get the first satisfiable inheritable. There may not
+    /// be any present in current context.
+    ///
+    /// Which is fine, because we only dispatch updates for those that are
+    /// present and satisfiable.
+    ///
+    /// For all the satisfiable inheritables, mark as needing build.
+    ///
+    /// For each aspect -> inheritable pair, perform `valueFor(aspect)?.call(aspect.mutate(inheritable))`
+    ///
+    /// Finish batch transaction for each inheritable
+  }
+}
+
 extension ReplaceMutableInheritable<T> on InheritableAspect<T> {
   /// Creates an [AspectMutation] that unconditionally requests [T] to be
   /// replaced by [next].
@@ -1000,7 +1030,8 @@ extension PatchMutableInheritable<A, T> on PatchableAspect<A, T> {
   ///
   /// The newly created [AspectMutation] uses `this.key`, which means it is
   /// possible to override it by using `AspectOverride.key`.
-  AspectMutation<T> replace(A next) => AspectMutation((_) => patch(next), key);
+  AspectMutation<T> replace(A next) =>
+      AspectMutation((w) => patch(w.valueFor<T>(this), next), key);
 }
 
 // TODO: an Inheritable.mutable can be used to deny updates from certain
@@ -1048,9 +1079,10 @@ class AspectMutation<T> extends EquatableAspect<T>
   }
 }
 
+typedef AspectPatch<A, T> = T Function(T value, A next);
 mixin PatchableAspect<A, T> on TransformingAspect<A, T> {
   /// Given a new [A] of [T], return the patched [T]
-  T patch(A next);
+  T patch(T value, A next);
 }
 
 class Aspect<A, T> extends EquatableAspect<T>
@@ -1062,7 +1094,7 @@ class Aspect<A, T> extends EquatableAspect<T>
   @override
   final Key key;
   final A Function(T) mapper;
-  final T Function(A) _patch;
+  final AspectPatch<A, T> _patch;
   final DidUpdateWidget<T> _didUpdateWidgetImpl;
   final DefaultInheritableAspectOfContext<A> _defaultValue;
 
@@ -1073,7 +1105,7 @@ class Aspect<A, T> extends EquatableAspect<T>
   /// Create an aspect [A] of [T] using [transform],
   /// which can optionaly be later patched using [patch].
   const Aspect.patchable({
-    @required T Function(A) patch,
+    @required AspectPatch<A, T> patch,
     Key key,
     A Function(T) transform,
   }) : this._(null, transform, key, null, patch);
@@ -1102,8 +1134,8 @@ class Aspect<A, T> extends EquatableAspect<T>
   }
 
   @override
-  T patch(A next) {
-    if (_patch != null) return _patch(next);
+  T patch(T value, A next) {
+    if (_patch != null) return _patch(value, next);
 
     throw StateError('This aspect is not Patchable');
   }
@@ -1146,7 +1178,7 @@ class Aspect<A, T> extends EquatableAspect<T>
   Aspect<A, T> clone({
     Key key,
     final A Function(T) mapper,
-    final T Function(A) patch,
+    final AspectPatch<A, T> patch,
     final DidUpdateWidget<T> didUpdateWidget,
     final DefaultInheritableAspectOfContext<A> defaultValue,
   }) {
@@ -1182,7 +1214,7 @@ extension AspectChianingFn<R, T> on Aspect<R, T> {
   }
 
   /// Allow patching [R] of [T] using [patch]
-  Aspect<R, T> withPatch(T Function(R) patch, [Key key]) {
+  Aspect<R, T> withPatch(AspectPatch<R, T> patch, [Key key]) {
     return clone(key: key, patch: patch);
   }
 
