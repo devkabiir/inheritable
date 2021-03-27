@@ -5,15 +5,15 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 class User {
-  String fname;
-  String lname;
+  late String fname;
+  late String lname;
 
-  static String firstName(User user) => user.fname;
-  static String lastName(User user) => user.lname;
-  static String fullName(User user) => '${user.fname} ${user.lname}';
+  static String? firstName(User? user) => user?.fname;
+  static String? lastName(User? user) => user?.lname;
+  static String? fullName(User? user) => '${user?.fname} ${user?.lname}';
 
-  static List<String> bothField(User user) {
-    return user.both;
+  static List<String>? bothField(User? user) {
+    return user?.both;
   }
 
   static String displayW<A>(String key, A aspect, int buildCount) =>
@@ -57,7 +57,7 @@ extension on WidgetTester {
   /// This has a similar effect to routing to a different page
   Future<void> disposeWidgets() async {
     await pumpWidget(const SizedBox());
-    return pumpAndSettle();
+    return pumpAndSettle().then((_) => null);
   }
 }
 
@@ -72,11 +72,11 @@ class Variant<T> extends TestVariant<T> {
     return value.toString();
   }
 
-  T _currentValue;
-  T get currentValue => _currentValue;
+  T? _currentValue;
+  T get currentValue => _currentValue!;
 
   @override
-  Future<T> setUp(T value) async {
+  Future<T?> setUp(T value) async {
     _currentValue = value;
     return null;
   }
@@ -87,14 +87,14 @@ class Variant<T> extends TestVariant<T> {
   }
 }
 
-Future<void> main([List<String> args]) async {
+Future<void> main([List<String>? args]) async {
   testWidgets('Throws for unsatisfied dependency', (tester) async {
     final defaultObj = Object();
     var dependency = defaultObj;
 
     await tester.pumpStatefulWidget(
       (context, setState) => dependency = Inheritable.of<User>(context,
-          aspect: const NoAspect<User>(null), nullOk: false),
+          aspect: const NoAspect<User>(null), nullOk: false)!,
     );
 
     expect(tester.takeException(), isA<StateError>());
@@ -104,14 +104,15 @@ Future<void> main([List<String> args]) async {
   testWidgets('Returns null for unsatisfied dependency [nullOk]',
       (tester) async {
     final defaultObj = Object();
-    var dependency = defaultObj;
+    Object? dependency = defaultObj;
 
     await tester.pumpStatefulWidget(
       (context, setState) {
         dependency = Inheritable.of<User>(context,
             aspect: const NoAspect<User>(null), nullOk: true);
         return Text(
-            (dependency as Inheritable<User>)?.valueFor(null) ?? 'nothing');
+          (dependency as Inheritable<User>?)?.toString() ?? 'nothing',
+        );
       },
     );
 
@@ -122,11 +123,11 @@ Future<void> main([List<String> args]) async {
 
   testWidgets('Throws for unsatisfied mutable dependency', (tester) async {
     final defaultObj = Object();
-    var dependency = defaultObj;
+    Object? dependency = defaultObj;
 
     await tester.pumpStatefulWidget(
       (context, setState) => dependency = Inheritable.of<User>(context,
-          aspect: const NoAspect<User>(null), nullOk: false, mutable: true),
+          aspect: const NoAspect<User>(null), nullOk: false, mutable: true)!,
     );
 
     expect(tester.takeException(), isA<StateError>());
@@ -136,14 +137,14 @@ Future<void> main([List<String> args]) async {
   testWidgets('Returns null for unsatisfied dependency [nullOk]',
       (tester) async {
     final defaultObj = Object();
-    var dependency = defaultObj;
+    Object? dependency = defaultObj;
 
     await tester.pumpStatefulWidget(
       (context, setState) {
         dependency = Inheritable.of<User>(context,
             aspect: const NoAspect<User>(null), nullOk: true, mutable: true);
         return Text(
-            (dependency as Inheritable<User>)?.valueFor(null) ?? 'nothing');
+            (dependency as Inheritable<User>?)?.toString() ?? 'nothing');
       },
     );
 
@@ -164,7 +165,7 @@ Future<void> main([List<String> args]) async {
             builder: (context) {
               final fullName =
                   context.aspect((User u) => '${u.fname} ${u.lname}');
-              return Text(fullName);
+              return Text(fullName!);
             },
           ),
         ),
@@ -195,13 +196,13 @@ Future<void> main([List<String> args]) async {
 
     await tester.pumpStatefulWidget(
       (context, setState) {
-        return Inheritable(
+        return Inheritable<User?>(
           key: const Key('test-key'),
           value: user,
           child: Column(
             key: const Key('column'),
             children: [
-              FlatButton(
+              TextButton(
                 key: const Key('button'),
                 onPressed: () {
                   setState(() {
@@ -261,13 +262,13 @@ Future<void> main([List<String> args]) async {
 
     await tester.pumpStatefulWidget(
       (context, setState) {
-        return Inheritable(
+        return Inheritable<User?>(
           key: const Key('test-key'),
           value: user,
           child: Column(
             key: const Key('column'),
             children: [
-              FlatButton(
+              TextButton(
                 key: const Key('button'),
                 onPressed: () {
                   setState(() {
@@ -320,7 +321,7 @@ Future<void> main([List<String> args]) async {
           child: Column(
             key: const Key('column'),
             children: [
-              FlatButton(
+              TextButton(
                 key: const Key('button'),
                 onPressed: () {
                   setState(() {
@@ -348,43 +349,6 @@ Future<void> main([List<String> args]) async {
     expect(User.stateW('no-aspect', '$user', 2), findsOneWidget);
   });
 
-  testWidgets('Disallows dependents without any aspect', (tester) async {
-    var user = User()
-      ..fname = 'first'
-      ..lname = 'last';
-
-    const nullAspect = _NullAspect<User>(key: ValueKey('null-aspect'));
-
-    await tester.pumpStatefulWidget(
-      (context, setState) {
-        return Inheritable(
-          key: const Key('test-key'),
-          value: user,
-          child: Column(
-            key: const Key('column'),
-            children: [
-              FlatButton(
-                key: const Key('button'),
-                onPressed: () {
-                  setState(() {
-                    user = User()
-                      ..fname = 'first'
-                      ..lname = 'last2';
-                  });
-                },
-                child: const Text('change-state'),
-              ),
-              const Flexible(child: nullAspect),
-            ],
-          ),
-        );
-      },
-    );
-
-    expect(tester.takeException(), isUnsupportedError);
-    expect(User.stateW('null-aspect', '$user', 1), findsNothing);
-  });
-
   testWidgets('Notifies some-aspect dependents', (tester) async {
     var user = User()
       ..fname = 'first'
@@ -406,7 +370,7 @@ Future<void> main([List<String> args]) async {
           child: Column(
             key: const Key('column'),
             children: [
-              FlatButton(
+              TextButton(
                 key: const Key('button'),
                 onPressed: () {
                   setState(() {
@@ -460,7 +424,7 @@ Future<void> main([List<String> args]) async {
           child: Column(
             key: const Key('column'),
             children: [
-              FlatButton(
+              TextButton(
                 key: const Key('button'),
                 onPressed: () {
                   setState(() {
@@ -499,7 +463,7 @@ Future<void> main([List<String> args]) async {
       {
         Aspect((User u) => u.fname, const Key('user-fname')),
         Aspect((User u) => u.lname, const Key('user-lname'))
-            .where(({next, prev}) {
+            .where(({required next, required prev}) {
           return next != 'last2';
         }),
       },
@@ -514,7 +478,7 @@ Future<void> main([List<String> args]) async {
           child: Column(
             key: const Key('column'),
             children: [
-              FlatButton(
+              TextButton(
                 key: const Key('button'),
                 onPressed: () {
                   setState(() {
@@ -553,7 +517,7 @@ Future<void> main([List<String> args]) async {
       {
         Aspect((User u) => u.fname, const Key('user-fname')),
         Aspect((User u) => u.lname, const Key('user-lname'))
-            .where(({next, prev}) => next == 'last2'),
+            .where(({required next, required prev}) => next == 'last2'),
       },
       key: const ValueKey('some-aspect'),
     );
@@ -566,7 +530,7 @@ Future<void> main([List<String> args]) async {
           child: Column(
             key: const Key('column'),
             children: [
-              FlatButton(
+              TextButton(
                 key: const Key('button'),
                 onPressed: () {
                   setState(() {
@@ -617,7 +581,7 @@ Future<void> main([List<String> args]) async {
           child: Column(
             key: const Key('column'),
             children: [
-              FlatButton(
+              TextButton(
                 key: const Key('button'),
                 onPressed: () {
                   setState(() {
@@ -667,7 +631,7 @@ Future<void> main([List<String> args]) async {
           child: Column(
             key: const Key('column'),
             children: [
-              FlatButton(
+              TextButton(
                 key: const Key('button'),
                 onPressed: () {
                   setState(() {
@@ -721,7 +685,7 @@ Future<void> main([List<String> args]) async {
           child: Column(
             key: const Key('column'),
             children: [
-              FlatButton(
+              TextButton(
                 key: const Key('button'),
                 onPressed: () {
                   setState(() {
@@ -760,7 +724,7 @@ Future<void> main([List<String> args]) async {
       {
         Aspect((User u) => u.fname, const Key('user-fname')),
         Aspect((User u) => u.lname, const Key('user-lname'))
-            .where(({next, prev}) {
+            .where(({required next, required prev}) {
           return next != 'last2';
         }),
       },
@@ -775,7 +739,7 @@ Future<void> main([List<String> args]) async {
           child: Column(
             key: const Key('column'),
             children: [
-              FlatButton(
+              TextButton(
                 key: const Key('button'),
                 onPressed: () {
                   setState(() {
@@ -815,7 +779,7 @@ Future<void> main([List<String> args]) async {
       {
         Aspect((User u) => u.fname, const Key('user-fname')),
         Aspect((User u) => u.lname, const Key('user-lname'))
-            .where(({next, prev}) => next == 'last2'),
+            .where(({required next, required prev}) => next == 'last2'),
       },
       key: const ValueKey('some-chained-aspect'),
     );
@@ -828,7 +792,7 @@ Future<void> main([List<String> args]) async {
           child: Column(
             key: const Key('column'),
             children: [
-              FlatButton(
+              TextButton(
                 key: const Key('button'),
                 onPressed: () {
                   setState(() {
@@ -884,7 +848,7 @@ Future<void> main([List<String> args]) async {
           return Inheritable.supply(
             strict: true,
             inheritables: [
-              Inheritable<User>(value: user),
+              Inheritable<User?>(value: user),
               Inheritable<String>(value: user.lname),
               Inheritable<int>(value: User.fullName(user).hashCode),
             ],
@@ -932,8 +896,8 @@ Future<void> main([List<String> args]) async {
           return Inheritable.supply(
             strict: true,
             inheritables: [
-              Inheritable<User>(value: user),
-              Inheritable<User>(value: user),
+              Inheritable<User?>(value: user),
+              Inheritable<User?>(value: user),
               Inheritable<String>(value: user.lname),
               Inheritable<int>(value: User.fullName(user).hashCode),
             ],
@@ -977,19 +941,19 @@ Future<void> main([List<String> args]) async {
           return Inheritable.supply(
             strict: true,
             inheritables: [
-              Inheritable<User>(
+              Inheritable<User?>(
                 key: const Key('key1'),
                 value: User()
                   ..fname = 'will be'
                   ..lname = 'overridden',
               ),
-              Inheritable<User>(
+              Inheritable<User?>(
                 key: const Key('key2'),
                 value: User()
                   ..fname = 'will also be'
                   ..lname = 'overridden',
               ),
-              Inheritable<User>(key: const Key('key3'), value: user),
+              Inheritable<User?>(key: const Key('key3'), value: user),
             ],
             child: Column(
               key: const Key('column'),
@@ -1035,19 +999,19 @@ Future<void> main([List<String> args]) async {
           return Inheritable.supply(
             strict: true,
             inheritables: [
-              Inheritable<User>(
+              Inheritable<User?>(
                 key: const Key('key1'),
                 value: User()
                   ..fname = 'will be'
                   ..lname = 'overridden',
               ),
-              Inheritable<User>(
+              Inheritable<User?>(
                 key: const Key('key1'),
                 value: User()
                   ..fname = 'will also be'
                   ..lname = 'overridden',
               ),
-              Inheritable<User>(key: const Key('key3'), value: user),
+              Inheritable<User?>(key: const Key('key3'), value: user),
             ],
             child: Column(
               key: const Key('column'),
@@ -1089,19 +1053,19 @@ Future<void> main([List<String> args]) async {
           return Inheritable.supply(
             strict: true,
             inheritables: [
-              Inheritable<User>(
+              Inheritable<User?>(
                 key: const Key('key1'),
                 value: User()
                   ..fname = 'will be'
                   ..lname = 'overridden',
               ),
-              Inheritable<User>(
+              Inheritable<User?>(
                 key: const Key('key2'),
                 value: User()
                   ..fname = 'will also be'
                   ..lname = 'overridden',
               ),
-              Inheritable<User>(value: user),
+              Inheritable<User?>(value: user),
             ],
             child: Column(
               key: const Key('column'),
@@ -1176,9 +1140,61 @@ Future<void> main([List<String> args]) async {
     });
 
     testWidgets(
-        '[strict:false] Notifies dependents for multiple Inheritables (unique-by-types)',
+        '[strict:false] Notifies dependents for multiple Inheritables (unique-by-keys)',
         (tester) async {
-      expect(true, isTrue);
+      final user = User()
+        ..fname = 'first'
+        ..lname = 'last';
+
+      const firstNameW = _ExtractMutableAspectW(
+        User.firstName,
+        key: ValueKey('first-name'),
+      );
+      const lastNameW = _ExtractMutableAspectW(
+        User.lastName,
+        key: ValueKey('last-name'),
+      );
+      const fullNameW = _ExtractMutableAspectW(
+        User.fullName,
+        key: ValueKey('full-name'),
+      );
+
+      await tester.pumpStatefulWidget(
+        (context, setState) {
+          return Inheritable.supply(
+            strict: false,
+            inheritables: [
+              Inheritable<User?>(
+                key: const Key('key1'),
+                value: User()
+                  ..fname = 'will be'
+                  ..lname = 'overridden',
+              ),
+              Inheritable<User?>(
+                key: const Key('key2'),
+                value: User()
+                  ..fname = 'will also be'
+                  ..lname = 'overridden',
+              ),
+              Inheritable<User?>(key: const Key('key3'), value: user),
+            ],
+            child: Column(
+              key: const Key('column'),
+              children: const [
+                Flexible(child: firstNameW),
+                Flexible(child: lastNameW),
+                Flexible(child: fullNameW),
+              ],
+            ),
+          );
+        },
+      );
+
+      expect(tester.takeException(), isNull);
+
+      expect(User.stateW('first-name', 'first', 1), findsOneWidget);
+      expect(User.stateW('last-name', 'last', 1), findsOneWidget);
+      expect(User.stateW('full-name', 'first last', 1), findsOneWidget);
     });
 
     testWidgets(
@@ -1206,19 +1222,19 @@ Future<void> main([List<String> args]) async {
           return Inheritable.supply(
             strict: true,
             inheritables: [
-              Inheritable<User>(
+              Inheritable<User?>(
                 key: const Key('key1'),
                 value: User()
                   ..fname = 'this will be first'
                   ..lname = 'not used',
               ),
-              Inheritable<User>(
+              Inheritable<User?>(
                 key: const Key('key2'),
                 value: User()
                   ..fname = 'not used'
                   ..lname = 'this will be last',
               ),
-              Inheritable<User>(key: const Key('key3'), value: user),
+              Inheritable<User?>(key: const Key('key3'), value: user),
             ],
             child: Column(
               key: const Key('column'),
@@ -1241,22 +1257,163 @@ Future<void> main([List<String> args]) async {
     });
 
     testWidgets(
-        '[strict:false] Notifies dependents for multiple Inheritables (unique-by-keys)',
+        '[strict:false] Notifies dependents for multiple Inheritables (unique-by-types)',
         (tester) async {
-      expect(true, isTrue);
+      final user = User()
+        ..fname = 'first'
+        ..lname = 'last';
+
+      const firstNameW = _ExtractMutableAspectW(
+        User.firstName,
+        key: ValueKey('first-name'),
+      );
+      final lastNameW = _ExtractMutableAspectW(
+        (String lname) => lname,
+        key: const ValueKey('last-name'),
+      );
+      final fullNameW = _ExtractMutableAspectW(
+        (int fullName) => fullName,
+        key: const ValueKey('full-name'),
+      );
+
+      await tester.pumpStatefulWidget(
+        (context, setState) {
+          return Inheritable.supply(
+            strict: false,
+            inheritables: [
+              Inheritable<User?>(value: user),
+              Inheritable<String>(value: user.lname),
+              Inheritable<int>(value: User.fullName(user).hashCode),
+            ],
+            child: Column(
+              key: const Key('column'),
+              children: [
+                const Flexible(child: firstNameW),
+                Flexible(child: lastNameW),
+                Flexible(child: fullNameW),
+              ],
+            ),
+          );
+        },
+      );
+
+      expect(tester.takeException(), isNull);
+      expect(User.stateW('first-name', 'first', 1), findsOneWidget);
+      expect(User.stateW('last-name', 'last', 1), findsOneWidget);
+      expect(
+          User.stateW('full-name', 'first last'.hashCode, 1), findsOneWidget);
     });
 
     testWidgets(
         'Can supply [strict:true] multiple Inheritable.mutable (unique-by-types)',
         (tester) async {
-      expect(true, isTrue);
-    }, skip: true);
+      final user = User()
+        ..fname = 'first'
+        ..lname = 'last';
+
+      const firstNameW = _ExtractMutableAspectW(
+        User.firstName,
+        key: ValueKey('first-name'),
+      );
+      final lastNameW = _ExtractMutableAspectW(
+        (String lname) => lname,
+        key: const ValueKey('last-name'),
+      );
+      final fullNameW = _ExtractMutableAspectW(
+        (int fullName) => fullName,
+        key: const ValueKey('full-name'),
+      );
+
+      await tester.pumpStatefulWidget(
+        (context, setState) {
+          return Inheritable.supply(
+            strict: true,
+            inheritables: [
+              Inheritable<User?>.mutable(onMutate: (_) {}, value: user),
+              Inheritable<String>.mutable(onMutate: (_) {}, value: user.lname),
+              Inheritable<int>.mutable(
+                onMutate: (_) {},
+                value: User.fullName(user).hashCode,
+              ),
+            ],
+            child: Column(
+              key: const Key('column'),
+              children: [
+                const Flexible(child: firstNameW),
+                Flexible(child: lastNameW),
+                Flexible(child: fullNameW),
+              ],
+            ),
+          );
+        },
+      );
+
+      expect(tester.takeException(), isNull);
+      expect(User.stateW('first-name', 'first', 1), findsOneWidget);
+      expect(User.stateW('last-name', 'last', 1), findsOneWidget);
+      expect(
+          User.stateW('full-name', 'first last'.hashCode, 1), findsOneWidget);
+    });
 
     testWidgets(
         'Can supply [strict:true] multiple Inheritable.mutable (unique-by-keys)',
         (tester) async {
-      expect(true, isTrue);
-    }, skip: true);
+      final user = User()
+        ..fname = 'first'
+        ..lname = 'last';
+
+      const firstNameW = _ExtractMutableAspectW(
+        User.firstName,
+        key: ValueKey('first-name'),
+      );
+      const lastNameW = _ExtractMutableAspectW(
+        User.lastName,
+        key: ValueKey('last-name'),
+      );
+      const fullNameW = _ExtractMutableAspectW(
+        User.fullName,
+        key: ValueKey('full-name'),
+      );
+
+      await tester.pumpStatefulWidget(
+        (context, setState) {
+          return Inheritable.supply(
+            strict: true,
+            inheritables: [
+              Inheritable<User?>.mutable(
+                key: const Key('key1'),
+                onMutate: (_) {},
+                value: User()
+                  ..fname = 'will be'
+                  ..lname = 'overridden',
+              ),
+              Inheritable<User?>.mutable(
+                key: const Key('key2'),
+                onMutate: (_) {},
+                value: User()
+                  ..fname = 'will also be'
+                  ..lname = 'overridden',
+              ),
+              Inheritable<User?>(key: const Key('key3'), value: user),
+            ],
+            child: Column(
+              key: const Key('column'),
+              children: const [
+                Flexible(child: firstNameW),
+                Flexible(child: lastNameW),
+                Flexible(child: fullNameW),
+              ],
+            ),
+          );
+        },
+      );
+
+      expect(tester.takeException(), isNull);
+
+      expect(User.stateW('first-name', 'first', 1), findsOneWidget);
+      expect(User.stateW('last-name', 'last', 1), findsOneWidget);
+      expect(User.stateW('full-name', 'first last', 1), findsOneWidget);
+    });
   });
 
   testWidgets(
@@ -1281,7 +1438,7 @@ Future<void> main([List<String> args]) async {
 
     await tester.pumpStatefulWidget(
       (context, setState) {
-        return Inheritable<User>.mutable(
+        return Inheritable<User?>.mutable(
           key: const Key('test-key'),
           value: user,
           onMutate: Inheritable.ignoreMutation,
@@ -1289,7 +1446,7 @@ Future<void> main([List<String> args]) async {
             key: const Key('column'),
             children: [
               Builder(
-                builder: (context) => FlatButton(
+                builder: (context) => TextButton(
                   key: const Key('button'),
                   onPressed: () {
                     context.aspect.update(
@@ -1331,7 +1488,7 @@ Future<void> main([List<String> args]) async {
   testWidgets(
       'Notifies parent for mutable value change [parent-accepts-change]',
       (tester) async {
-    var user = User()
+    User? user = User()
       ..fname = 'first'
       ..lname = 'last';
 
@@ -1350,7 +1507,7 @@ Future<void> main([List<String> args]) async {
 
     await tester.pumpStatefulWidget(
       (context, setState) {
-        return Inheritable<User>.mutable(
+        return Inheritable<User?>.mutable(
           key: const Key('test-key'),
           value: user,
           onMutate: (next) {
@@ -1362,10 +1519,10 @@ Future<void> main([List<String> args]) async {
             key: const Key('column'),
             children: [
               Builder(
-                builder: (context) => FlatButton(
+                builder: (context) => TextButton(
                   key: const Key('button'),
                   onPressed: () {
-                    context.aspect.update(
+                    context.aspect.update<User?>(
                       User()
                         ..fname = 'first'
                         ..lname = 'last2',
@@ -1437,7 +1594,7 @@ Future<void> main([List<String> args]) async {
           child: Column(
             key: const Key('column'),
             children: [
-              FlatButton(
+              TextButton(
                 key: const Key('button'),
                 onPressed: () {
                   setState(() {
@@ -1480,7 +1637,7 @@ Future<void> main([List<String> args]) async {
       notifyCount += 1;
     }
 
-    final userListener = Aspect((User u) => u.lname, const Key('user-lname'))
+    final userListener = const Aspect(User.lastName, Key('user-lname'))
         .listenable
       ..addListener(didNotify);
 
@@ -1493,13 +1650,13 @@ Future<void> main([List<String> args]) async {
 
     await tester.pumpStatefulWidget(
       (context, setState) {
-        return Inheritable(
+        return Inheritable<User?>(
           key: const Key('test-key'),
           value: user,
           child: Column(
             key: const Key('column'),
             children: [
-              FlatButton(
+              TextButton(
                 key: const Key('button'),
                 onPressed: () {
                   setState(() {
@@ -1515,7 +1672,7 @@ Future<void> main([List<String> args]) async {
                 child: Builder(
                   key: const Key('builder'),
                   builder: (context) {
-                    return ValueListenableBuilder<User>(
+                    return ValueListenableBuilder<User?>(
                       valueListenable: userListener,
                       builder: (context, user, child) =>
                           Text('ValueListenableBuilder: ${user?.lname}'),
@@ -1555,13 +1712,13 @@ Future<void> main([List<String> args]) async {
 
     await tester.pumpStatefulWidget(
       (context, setState) {
-        return Inheritable(
+        return Inheritable<User?>(
           key: const Key('test-key'),
           value: user,
           child: Column(
             key: const Key('column'),
             children: [
-              FlatButton(
+              TextButton(
                 key: const Key('button'),
                 onPressed: () {
                   setState(() {
@@ -1613,7 +1770,7 @@ Future<void> main([List<String> args]) async {
           child: Column(
             key: const Key('column'),
             children: [
-              FlatButton(
+              TextButton(
                 key: const Key('button'),
                 onPressed: () {
                   setState(() {
@@ -1668,7 +1825,7 @@ Future<void> main([List<String> args]) async {
           child: Column(
             key: const Key('column'),
             children: [
-              FlatButton(
+              TextButton(
                 key: const Key('button'),
                 onPressed: () {
                   setState(() {
@@ -1724,7 +1881,7 @@ Future<void> main([List<String> args]) async {
           child: Column(
             key: const Key('column'),
             children: [
-              FlatButton(
+              TextButton(
                 key: const Key('button-1'),
                 onPressed: () {
                   setState(() {
@@ -1735,7 +1892,7 @@ Future<void> main([List<String> args]) async {
                 },
                 child: const Text('change-state-1'),
               ),
-              FlatButton(
+              TextButton(
                 key: const Key('button-2'),
                 onPressed: () {
                   setState(() {
@@ -1793,7 +1950,7 @@ Future<void> main([List<String> args]) async {
           child: Column(
             key: const Key('column'),
             children: [
-              FlatButton(
+              TextButton(
                 key: const Key('button-1'),
                 onPressed: () {
                   setState(() {
@@ -1804,7 +1961,7 @@ Future<void> main([List<String> args]) async {
                 },
                 child: const Text('change-state-1'),
               ),
-              FlatButton(
+              TextButton(
                 key: const Key('button-2'),
                 onPressed: () {
                   setState(() {
@@ -1815,7 +1972,7 @@ Future<void> main([List<String> args]) async {
                 },
                 child: const Text('change-state-2'),
               ),
-              FlatButton(
+              TextButton(
                 key: const Key('button-3'),
                 onPressed: () {
                   setState(() {
@@ -1884,7 +2041,7 @@ Future<void> main([List<String> args]) async {
           child: Column(
             key: const Key('column'),
             children: [
-              FlatButton(
+              TextButton(
                 key: const Key('button-1'),
                 onPressed: () {
                   setState(() {
@@ -1895,7 +2052,7 @@ Future<void> main([List<String> args]) async {
                 },
                 child: const Text('change-state-1'),
               ),
-              FlatButton(
+              TextButton(
                 key: const Key('button-2'),
                 onPressed: () {
                   setState(() {
@@ -1906,7 +2063,7 @@ Future<void> main([List<String> args]) async {
                 },
                 child: const Text('change-state-2'),
               ),
-              FlatButton(
+              TextButton(
                 key: const Key('button-3'),
                 onPressed: () {
                   setState(() {
@@ -1973,7 +2130,7 @@ Future<void> main([List<String> args]) async {
           child: Column(
             key: const Key('column'),
             children: [
-              FlatButton(
+              TextButton(
                 key: const Key('button-1'),
                 onPressed: () {
                   setState(() {
@@ -1984,7 +2141,7 @@ Future<void> main([List<String> args]) async {
                 },
                 child: const Text('change-state-1'),
               ),
-              FlatButton(
+              TextButton(
                 key: const Key('button-2'),
                 onPressed: () {
                   setState(() {
@@ -1995,7 +2152,7 @@ Future<void> main([List<String> args]) async {
                 },
                 child: const Text('change-state-2'),
               ),
-              FlatButton(
+              TextButton(
                 key: const Key('button-3'),
                 onPressed: () {
                   setState(() {
@@ -2006,7 +2163,7 @@ Future<void> main([List<String> args]) async {
                 },
                 child: const Text('change-state-3'),
               ),
-              FlatButton(
+              TextButton(
                 key: const Key('button-4'),
                 onPressed: () {
                   setState(() {
@@ -2080,7 +2237,7 @@ Future<void> main([List<String> args]) async {
           child: Column(
             key: const Key('column'),
             children: [
-              FlatButton(
+              TextButton(
                 key: const Key('button-1'),
                 onPressed: () {
                   setState(() {
@@ -2091,7 +2248,7 @@ Future<void> main([List<String> args]) async {
                 },
                 child: const Text('change-state-1'),
               ),
-              FlatButton(
+              TextButton(
                 key: const Key('button-2'),
                 onPressed: () {
                   setState(() {
@@ -2102,7 +2259,7 @@ Future<void> main([List<String> args]) async {
                 },
                 child: const Text('change-state-2'),
               ),
-              FlatButton(
+              TextButton(
                 key: const Key('button-3'),
                 onPressed: () {
                   setState(() {
@@ -2186,7 +2343,7 @@ Future<void> main([List<String> args]) async {
           child: Column(
             key: const Key('column'),
             children: [
-              FlatButton(
+              TextButton(
                 key: const Key('button'),
                 onPressed: () {
                   setState(() {
@@ -2253,7 +2410,7 @@ Future<void> main([List<String> args]) async {
           child: Column(
             key: const Key('column'),
             children: [
-              FlatButton(
+              TextButton(
                 key: const Key('button'),
                 onPressed: () {
                   setState(() {
@@ -2322,7 +2479,7 @@ Future<void> main([List<String> args]) async {
           child: Column(
             key: const Key('column'),
             children: [
-              FlatButton(
+              TextButton(
                 key: const Key('button'),
                 onPressed: () {
                   setState(() {
@@ -2442,7 +2599,7 @@ Future<void> main([List<String> args]) async {
           value: user,
           overrides: {
             AspectOverride<ValueChanged<User>, User>.key(
-              overriddenAspect.key,
+              overriddenAspect.key!,
               (u) => setState(() => overriddenOnMutate
                   .add('call ${overriddenOnMutate.length + 1}')),
               mutation: true,
@@ -2501,7 +2658,7 @@ Future<void> main([List<String> args]) async {
           value: user,
           overrides: {
             AspectOverride<ValueChanged<User>, User>.key(
-              overriddenAspect.key,
+              overriddenAspect.key!,
               (u) => setState(() => overriddenOnMutate
                   .add('call ${overriddenOnMutate.length + 1}')),
               mutation: false,
@@ -2536,17 +2693,17 @@ Future<void> main([List<String> args]) async {
       'Throws when provided value for aspect is not of expected type (aspect equality by key)',
       (tester) async {
     final overriddenAspectW = _OverridenAspectW(
-      Aspect((User u) => u.lname, const Key('user-lname')),
+      Aspect((User? u) => u?.lname, const Key('user-lname')),
       key: const ValueKey('overridden-aspect'),
     );
 
     await tester.pumpStatefulWidget(
       (context, setState) {
-        return Inheritable.override<User, User>(
+        return Inheritable.override<User?, User?>(
           key: const Key('test-key'),
           value: null,
           overrides: {
-            const AspectOverride<int, User>.key(
+            const AspectOverride<int, User?>.key(
               Key('user-lname'),
               123,
             )
@@ -2569,7 +2726,7 @@ Future<void> main([List<String> args]) async {
       'Throws when provided value for aspect is not of expected type (aspect equality)',
       (tester) async {
     final overriddenAspect =
-        Aspect((User u) => u.lname, const Key('user-lname'));
+        Aspect((User? u) => u?.lname, const Key('user-lname'));
     final overriddenAspectW = _OverridenAspectW(
       overriddenAspect,
       key: const ValueKey('overridden-aspect'),
@@ -2577,10 +2734,10 @@ Future<void> main([List<String> args]) async {
 
     await tester.pumpStatefulWidget(
       (context, setState) {
-        return Inheritable.override<User, User>(
+        return Inheritable.override<User?, User?>(
           key: const Key('test-key'),
           value: null,
-          overrides: {AspectOverride<int, User>(overriddenAspect, 123)},
+          overrides: {AspectOverride<int, User?>(overriddenAspect, 123)},
           strict: false,
           child: Column(
             key: const Key('column'),
@@ -2623,7 +2780,7 @@ Future<void> main([List<String> args]) async {
           value: user,
           overrides: {
             AspectOverride<ValueChanged<String>, User>.key(
-              overriddenAspect.key,
+              overriddenAspect.key!,
               (u) => setState(() => overriddenOnMutate
                   .add('call ${overriddenOnMutate.length + 1}')),
               mutation: true,
@@ -2678,7 +2835,7 @@ Future<void> main([List<String> args]) async {
 
     await tester.pumpStatefulWidget(
       (context, setState) {
-        return Text(aspect.of(context));
+        return Text(aspect.of(context)!);
       },
     );
 
@@ -2693,7 +2850,7 @@ Future<void> main([List<String> args]) async {
 
     await tester.pumpStatefulWidget(
       (context, setState) {
-        return Text(aspect.of(context));
+        return Text(aspect.of(context)!);
       },
     );
 
@@ -2706,7 +2863,7 @@ Future<void> main([List<String> args]) async {
 
     await tester.pumpStatefulWidget(
       (context, setState) {
-        return Text(aspect.of(context, defaultValue: 'use-time'));
+        return Text(aspect.of(context, defaultValue: 'use-time')!);
       },
     );
 
@@ -2719,8 +2876,9 @@ Future<void> main([List<String> args]) async {
 
     await tester.pumpStatefulWidget(
       (context, setState) {
-        return Text(
-            aspect.map((fname) => fname.hashCode.toString()).of(context));
+        return Text(aspect
+            .map<String?>((fname) => fname.hashCode.toString())
+            .of(context)!);
       },
     );
 
@@ -2733,13 +2891,14 @@ Future<void> main([List<String> args]) async {
 
     await tester.pumpStatefulWidget(
       (context, setState) {
-        return Inheritable.override<User, User>(
+        return Inheritable.override<User?, User?>(
           strict: false,
+          value: null,
           overrides: {
             aspect > 'overridden-value',
           },
           child: Builder(
-            builder: (context) => Text(aspect.of(context)),
+            builder: (context) => Text(aspect.of(context)!),
           ),
         );
       },
@@ -2755,14 +2914,15 @@ Future<void> main([List<String> args]) async {
 
     await tester.pumpStatefulWidget(
       (context, setState) {
-        return Inheritable.override<User, User>(
+        return Inheritable.override<User?, User?>(
           strict: false,
+          value: null,
           overrides: {
             aspect > 'overridden-value',
           },
           child: Builder(
-            builder: (context) =>
-                Text(aspect.map((s) => s.hashCode.toString()).of(context)),
+            builder: (context) => Text(
+                aspect.map<String?>((s) => s.hashCode.toString()).of(context)!),
           ),
         );
       },
@@ -2780,13 +2940,14 @@ Future<void> main([List<String> args]) async {
 
     await tester.pumpStatefulWidget(
       (context, setState) {
-        return Inheritable.override<User, User>(
+        return Inheritable.override<User?, User?>(
           strict: false,
+          value: null,
           overrides: {
             aspect > 'overridden-value',
           },
           child: Builder(
-            builder: (context) => Text(aspect.of(context)),
+            builder: (context) => Text(aspect.of(context)!),
           ),
         );
       },
@@ -2803,14 +2964,16 @@ Future<void> main([List<String> args]) async {
 
     await tester.pumpStatefulWidget(
       (context, setState) {
-        return Inheritable.override<User, User>(
+        return Inheritable.override<User?, User?>(
           strict: false,
+          value: null,
           overrides: {
             aspect > 'overridden-value',
           },
           child: Builder(
-            builder: (context) =>
-                Text(aspect.map((s) => s.hashCode.toString()).of(context)),
+            builder: (context) => Text(aspect.map<String?>((s) {
+              return s.hashCode.toString();
+            }).of(context)!),
           ),
         );
       },
@@ -2822,15 +2985,10 @@ Future<void> main([List<String> args]) async {
     expect(find.text('first-name'), findsNothing);
     expect(find.text('overridden-value'), findsOneWidget);
   });
-
-  testWidgets('Throws on missing Inheritable.mutable onMutate', (tester) async {
-    expect(
-        () => Inheritable.mutable(onMutate: null), throwsA(isAssertionError));
-  });
 }
 
 class _InlineListenableAspect extends StatefulWidget {
-  const _InlineListenableAspect({Key key}) : super(key: key);
+  const _InlineListenableAspect({Key? key}) : super(key: key);
   @override
   _InlineListenableAspectState createState() => _InlineListenableAspectState();
 }
@@ -2849,18 +3007,22 @@ class _InlineListenableAspectState extends State<_InlineListenableAspect> {
   Widget build(BuildContext context) {
     _buildCount += 1;
 
-    return ValueListenableBuilder<User>(
+    return ValueListenableBuilder<User?>(
       valueListenable:
-          const Aspect(User.lastName, Key('user-lname')).listenable.of(context),
-      builder: (context, user, child) => Text(
-        User.displayW(key.value, user.lname, _buildCount),
-      ),
+          const Aspect<String?, User?>(User.lastName, Key('user-lname'))
+              .listenable
+              .of(context),
+      builder: (context, user, child) {
+        return Text(
+          User.displayW(key.value, user?.lname, _buildCount),
+        );
+      },
     );
   }
 }
 
 class _NoAspect<T> extends StatefulWidget {
-  const _NoAspect({Key key}) : super(key: key);
+  const _NoAspect({Key? key}) : super(key: key);
   @override
   _NoAspectState<T> createState() => _NoAspectState<T>();
 }
@@ -2879,31 +3041,11 @@ class _NoAspectState<T> extends State<_NoAspect<T>> {
   }
 }
 
-class _NullAspect<T> extends StatefulWidget {
-  const _NullAspect({Key key}) : super(key: key);
-  @override
-  _NullAspectState<T> createState() => _NullAspectState<T>();
-}
-
-class _NullAspectState<T> extends State<_NullAspect<T>> {
-  ValueKey<String> get key => widget.key as ValueKey<String>;
-
-  int _buildCount = 0;
-
-  @override
-  Widget build(BuildContext context) {
-    final value = Inheritable.of<T>(context)?.valueFor(null);
-    final text = User.displayW(key.value, value, _buildCount += 1);
-
-    return Text(text);
-  }
-}
-
 class _ExtractAspectW<A, T> extends StatefulWidget {
   final ExtractAspect<A, T> _extract;
   const _ExtractAspectW(
     this._extract, {
-    @required ValueKey<String> key,
+    required ValueKey<String> key,
   }) : super(key: key);
 
   @override
@@ -2927,7 +3069,7 @@ class _SomeAspectW<T> extends StatefulWidget {
   final Set<DependableAspect<T>> _aspects;
   const _SomeAspectW(
     this._aspects, {
-    @required ValueKey<String> key,
+    required ValueKey<String> key,
   }) : super(key: key);
 
   @override
@@ -2951,7 +3093,7 @@ class _SomeChainedAspectW<T> extends StatefulWidget {
   final Set<DependableAspect<T>> _aspects;
   const _SomeChainedAspectW(
     this._aspects, {
-    @required ValueKey<String> key,
+    required ValueKey<String> key,
   }) : super(key: key);
 
   @override
@@ -2968,7 +3110,7 @@ class _SomeChainedAspectWState<T> extends State<_SomeChainedAspectW<T>> {
     final aspect = widget._aspects
         .some()
         .map((it) => it.toString())
-        .where(({prev, next}) => prev != next)
+        .where(({required prev, required next}) => prev != next)
         .of(context);
     final text = User.displayW(key.value, aspect, _buildCount += 1);
     return Text(text);
@@ -2979,7 +3121,7 @@ class _ChainableAspectW<T> extends StatefulWidget {
   final InheritableAspect<T> aspect;
   const _ChainableAspectW(
     this.aspect, {
-    @required ValueKey<String> key,
+    required ValueKey<String> key,
   }) : super(key: key);
 
   @override
@@ -3004,7 +3146,7 @@ class _ExtractMutableAspectW<A, T> extends StatefulWidget {
   final ExtractAspect<A, T> _extract;
   const _ExtractMutableAspectW(
     this._extract, {
-    @required ValueKey<String> key,
+    required ValueKey<String> key,
   }) : super(key: key);
 
   @override
@@ -3030,7 +3172,7 @@ class _RemovableAspectW<A, T> extends StatefulWidget {
   final Aspect<A, T> aspect;
   const _RemovableAspectW(
     this.aspect, {
-    @required ValueKey<String> key,
+    required ValueKey<String> key,
   }) : super(key: key);
 
   @override
@@ -3050,7 +3192,7 @@ class _RemovableAspectWState<A, T> extends State<_RemovableAspectW<A, T>> {
       mainAxisSize: MainAxisSize.min,
       children: [
         Flexible(
-          child: FlatButton(
+          child: TextButton(
             key: const Key('remove-aspect-button'),
             onPressed: () => context.aspect.remove(widget.aspect),
             child: const Text('remove-aspect'),
@@ -3066,7 +3208,7 @@ class _RemovableAspectViaKeyW<A, T> extends StatefulWidget {
   final Aspect<A, T> aspect;
   const _RemovableAspectViaKeyW(
     this.aspect, {
-    @required ValueKey<String> key,
+    required ValueKey<String> key,
   }) : super(key: key);
 
   @override
@@ -3088,9 +3230,10 @@ class _RemovableAspectViaKeyWState<A, T>
       mainAxisSize: MainAxisSize.min,
       children: [
         Flexible(
-          child: FlatButton(
+          child: TextButton(
             key: const Key('remove-aspect-via-key-button'),
-            onPressed: () => context.aspect.removeKey<T>(widget.aspect.key),
+            // ignore: deprecated_member_use_from_same_package
+            onPressed: () => context.aspect.removeKey<T>(widget.aspect.key!),
             child: const Text('remove-aspect'),
           ),
         ),
@@ -3107,13 +3250,13 @@ class _DebounceAspectW<A, T> extends StatefulWidget {
   final PredicateAspect<A> compare;
 
   static const defaultDelay = Duration(milliseconds: 200);
-  static bool _equals({Object prev, Object next}) {
+  static bool _equals({required Object? prev, required Object? next}) {
     return next != prev;
   }
 
   const _DebounceAspectW(
     this.aspect, {
-    @required ValueKey<String> key,
+    required ValueKey<String> key,
     this.compare = _equals,
     this.leading = false,
     this.duration = defaultDelay,
@@ -3127,7 +3270,7 @@ class _DebounceAspectWState<A, T> extends State<_DebounceAspectW<A, T>> {
   ValueKey<String> get key => widget.key as ValueKey<String>;
 
   int _buildCount = 0;
-  Aspect<A, T> aspect;
+  late Aspect<A, T> aspect;
 
   @override
   void initState() {
@@ -3158,13 +3301,13 @@ class _InlineDebounceAspectW<A, T> extends StatefulWidget {
   final PredicateAspect<A> compare;
 
   static const defaultDelay = Duration(milliseconds: 200);
-  static bool _equals({Object prev, Object next}) {
+  static bool _equals({required Object? prev, required Object? next}) {
     return next != prev;
   }
 
   const _InlineDebounceAspectW(
     this.aspect, {
-    @required ValueKey<String> key,
+    required ValueKey<String> key,
     this.compare = _equals,
     this.duration = defaultDelay,
   }) : super(key: key);
@@ -3202,7 +3345,7 @@ class _OverridenAspectW<T> extends StatefulWidget {
   final InheritableAspect<T> _aspect;
   const _OverridenAspectW(
     this._aspect, {
-    @required ValueKey<String> key,
+    required ValueKey<String> key,
   }) : super(key: key);
 
   @override
@@ -3226,7 +3369,7 @@ class _OverridenMutableAspectW<T> extends StatefulWidget {
   final MutableInheritableAspect<T> _aspect;
   const _OverridenMutableAspectW(
     this._aspect, {
-    @required ValueKey<String> key,
+    required ValueKey<String> key,
   }) : super(key: key);
 
   @override
@@ -3243,7 +3386,7 @@ class _OverridenMutableAspectWState<T>
   @override
   Widget build(BuildContext context) {
     final text = User.displayW(key.value, '', _buildCount += 1);
-    return FlatButton(
+    return TextButton(
       key: Key('${widget.key}-button'),
       onPressed: () => widget._aspect.apply(context),
       child: Text(text),
@@ -3255,7 +3398,7 @@ class _AspectW<T> extends StatefulWidget {
   final InheritableAspect<T> aspect;
   const _AspectW(
     this.aspect, {
-    @required ValueKey<String> key,
+    required ValueKey<String> key,
   }) : super(key: key);
 
   @override

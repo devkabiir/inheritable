@@ -14,12 +14,12 @@ export 'extensions.dart';
 typedef ExtractAspect<A, T> = A Function(T it);
 
 /// Given [T] return whether you should be notified or not.
-typedef PredicateAspect<T> = bool Function({T prev, T next});
+typedef PredicateAspect<T> = bool Function({required T prev, required T next});
 
 /// Provides a default implementation of [DependableAspect.didUpdateWidget]
 mixin ShouldNotifyAspect<A, T> on DependableAspect<T> {
   @override
-  didUpdateWidget({next, prev}) {
+  didUpdateWidget({required next, required prev}) {
     return shouldNotify(next.valueFor<A>(this), prev.valueFor<A>(this));
   }
 
@@ -36,7 +36,7 @@ mixin TransformingAspect<A, T> on InheritableAspect<T> {
   A transform(T value);
 
   @override
-  A of(BuildContext context, {rebuild = true});
+  A? of(BuildContext context, {rebuild = true});
 }
 
 /// An [InheritableAspect] that allows providing a defaultValue in it's [of] method
@@ -49,7 +49,7 @@ mixin DefaultAspectofContext<A, T> on TransformingAspect<A, T> {
   /// no value could be produced.
   /// {@endtemplate}
   @override
-  A of(BuildContext context, {rebuild = true, A defaultValue});
+  A? of(BuildContext context, {rebuild = true, A? defaultValue});
 }
 
 abstract class AspectOverride<A, T> {
@@ -93,8 +93,7 @@ class _AspectOverrideMutation<T, A extends ValueChanged<T>>
   final InheritableAspect<T> aspect;
 
   const _AspectOverrideMutation(this.aspect, A override)
-      : assert(aspect != null),
-        super.constant(override);
+      : super.constant(override);
 
   @override
   get hashCode => aspect.hashCode;
@@ -110,8 +109,7 @@ class _AspectOverrideByEquality<A, T> extends AspectOverride<A, T> {
   final InheritableAspect<T> aspect;
 
   const _AspectOverrideByEquality(this.aspect, A override)
-      : assert(aspect != null),
-        assert(aspect is! MutableInheritableAspect,
+      : assert(aspect is! MutableInheritableAspect,
             'Prefer using AspectOverride.mutation instead.'),
         super.constant(override);
 
@@ -132,9 +130,7 @@ class _AspectOverrideByKey<A, T> extends AspectOverride<A, T> {
   final bool mutation;
 
   const _AspectOverrideByKey(this.key, A override, {this.mutation = false})
-      : assert(key != null),
-        assert(mutation != null),
-        super.constant(override);
+      : super.constant(override);
 
   @override
   get hashCode => key.hashCode;
@@ -156,22 +152,22 @@ abstract class InheritableAspect<T> with Diagnosticable {
   /// object identity.
   ///
   /// Same key can also be used to replace an aspect used by a widget.
-  Key get key;
+  Key? get key;
 
   /// Debug-mode label for this aspect
-  final String debugLabel;
+  final String? debugLabel;
 
   /// Constant constructor for subclasses
   const InheritableAspect([this.debugLabel]);
 
   /// {@macro InheritableAspect.none}
-  static NoAspect<T> none<T>([Key key]) => NoAspect<T>(key);
+  static NoAspect<T> none<T>([Key? key]) => NoAspect<T>(key);
 
   /// Create an aspect of [T] that is of type [A]
   ///
   /// The provided function will be provided [T] and it should take only 1
   /// aspect from it.
-  static Aspect<A, T> extract<A, T>(ExtractAspect<A, T> extract, [Key key]) =>
+  static Aspect<A, T> extract<A, T>(ExtractAspect<A, T> extract, [Key? key]) =>
       Aspect<A, T>(extract, key);
 
   /// Specify whether given [inheritable] satisfies this aspect.
@@ -198,7 +194,7 @@ abstract class InheritableAspect<T> with Diagnosticable {
   ///
   /// The default implementation returns the nearest enclosing [Inheritable] of
   /// [T] satisfying this aspect or `null`
-  Object of(BuildContext context, {bool rebuild = true}) {
+  Object? of(BuildContext context, {bool rebuild = true}) {
     return Inheritable.of<T>(context, aspect: this, rebuild: rebuild);
   }
 
@@ -287,12 +283,19 @@ mixin DependableAspect<T> on InheritableAspect<T> {
   /// This is similar to `copyWith` method pattern although intended only for internal use.
   @visibleForOverriding
   @protected
-  InheritableAspect<T> ensureHasKey({Key fallback});
+  InheritableAspect<T> ensureHasKey({Key? fallback});
+
+  /// If no key is specified for [InheritableAspect] or the depending widget,
+  /// this key will be assigned to aspects for a given [BuildContext]
+  static const defaultKey = Key('DependableAspect.defaultKey');
 
   /// Called by [Inheritable] of [T] when it decides to notify it's dependents.
   /// This is only called after [Inheritable] of [T] has been updated at least
   /// once. For the first time, aka "init" phase, [satisfiedBy] is called instead.
-  bool didUpdateWidget({Inheritable<T> next, Inheritable<T> prev});
+  bool didUpdateWidget({
+    required Inheritable<T> next,
+    required Inheritable<T> prev,
+  });
 
   @override
   @visibleForOverriding
@@ -316,7 +319,7 @@ mixin ClonableAspect<T> on InheritableAspect<T> {
   ///
   /// Implementations of this method are expected to return `this` if no fields
   /// are replaced.
-  InheritableAspect<T> clone({Key key});
+  InheritableAspect<T> clone({Key? key});
 }
 
 /// Provides default implementations for [Object.==] && [Object.hashCode].
@@ -329,7 +332,7 @@ mixin ClonableAspect<T> on InheritableAspect<T> {
 /// This library internally uses [_hash] && [_equals] instead of
 /// [Object.hashCode] && [Object.==] to force consistency.
 abstract class EquatableAspect<T> extends InheritableAspect<T> {
-  const EquatableAspect([String debugLabel]) : super(debugLabel);
+  const EquatableAspect([String? debugLabel]) : super(debugLabel);
 
   static final Expando<int> _cache = Expando('InheritableAspect.hashCode');
 
@@ -361,7 +364,7 @@ mixin DelegatingAspect<T> on ClonableAspect<T> {
   InheritableAspect<T> get delegate;
 
   @override
-  Key get key => delegate.key;
+  Key? get key => delegate.key;
 
   @override
   bool satisfiedBy(Inheritable<T> inheritable) {
@@ -381,7 +384,7 @@ mixin DelegatingAspect<T> on ClonableAspect<T> {
   ///
   /// This will throw [UnsupportedError] if [delegate] or [replacement] isn't [ClonableAspect]
   InheritableAspect<T> cloneDelegate(
-      {Key key, InheritableAspect<T> replacement}) {
+      {Key? key, InheritableAspect<T>? replacement}) {
     if ([key, replacement].whereType<Object>().isEmpty) return delegate;
 
     final resolved = replacement ?? delegate;
@@ -392,7 +395,7 @@ mixin DelegatingAspect<T> on ClonableAspect<T> {
   }
 
   @override
-  DelegatingAspect<T> clone({Key key, InheritableAspect<T> delegate});
+  DelegatingAspect<T> clone({Key? key, InheritableAspect<T>? delegate});
 
   @override
   of(context, {rebuild = true}) =>
@@ -430,7 +433,7 @@ mixin DelegatingDependableAspect<T>
   bool predicate(Inheritable<T> inheritable) => true;
 
   @override
-  bool didUpdateWidget({Inheritable<T> next, Inheritable<T> prev}) {
+  bool didUpdateWidget({required next, required prev}) {
     if (predicate(next)) {
       final dynamic delegate = this.delegate;
 
@@ -442,7 +445,7 @@ mixin DelegatingDependableAspect<T>
   }
 
   @override
-  DelegatingAspect<T> ensureHasKey({Key fallback}) {
+  DelegatingAspect<T> ensureHasKey({Key? fallback}) {
     final dynamic delegate = this.delegate;
     if (delegate is DependableAspect<T>)
       return clone(delegate: delegate.ensureHasKey(fallback: fallback));
@@ -453,7 +456,7 @@ mixin DelegatingDependableAspect<T>
   /// Convenience method to create a new copy of [delegate] with key. This is
   /// useful in [clone] implementations where [key] is always delegated to [delegate].
   InheritableAspect<T> ensureDelegateHasKey(
-      [InheritableAspect<T> replacement, Key key]) {
+      [InheritableAspect<T>? replacement, Key? key]) {
     final dynamic delegate = replacement ?? this.delegate;
     if (delegate is DependableAspect<T>)
       return delegate.ensureHasKey(fallback: key);
@@ -478,9 +481,7 @@ class _ByInheritableAspect<A, T> extends EquatableAspect<T>
   final InheritableAspectSatisfied<T> _predicate;
 
   _ByInheritableAspect(this.delegate, this._predicate)
-      : assert(delegate != null),
-        assert(_predicate != null),
-        super('_ByInheritableAspect of ${delegate.debugLabel}');
+      : super('_ByInheritableAspect of ${delegate.debugLabel}');
 
   @override
   bool predicate(Inheritable<T> inheritable) {
@@ -508,9 +509,9 @@ class _ByInheritableAspect<A, T> extends EquatableAspect<T>
 
   @override
   _ByInheritableAspect<A, T> clone({
-    Key key,
-    InheritableAspect<T> delegate,
-    InheritableAspectSatisfied<T> predicate,
+    Key? key,
+    InheritableAspect<T>? delegate,
+    InheritableAspectSatisfied<T>? predicate,
   }) {
     if ([key, delegate, predicate].whereType<Object>().isEmpty) return this;
 
@@ -566,9 +567,9 @@ extension InheritableAspectChainable<T> on DependableAspect<T> {
   /// Use [mapper] to be notified for [T] when it
   /// s mapped value changes
   /// {@endtemplate}
-  Aspect<R, T> map<R>(R Function(T) mapper, [Key key]) {
+  Aspect<R, T> map<R>(R Function(T) mapper, [Key? key]) {
     return Aspect<R, T>._(
-      ({next, prev, aspect}) =>
+      ({required next, required prev, required aspect}) =>
           didUpdateWidget(prev: prev, next: next) &&
           next.valueFor(aspect, mapper) != prev.valueFor(aspect, mapper),
       mapper,
@@ -576,9 +577,10 @@ extension InheritableAspectChainable<T> on DependableAspect<T> {
     );
   }
 
-  Aspect<T, T> withPatch(AspectPatch<T, T> patch, [Key key]) {
+  Aspect<T, T> withPatch(AspectPatch<T, T> patch, [Key? key]) {
     return Aspect._(
-      ({next, prev, aspect}) => didUpdateWidget(prev: prev, next: next),
+      ({required next, required prev, required aspect}) =>
+          didUpdateWidget(prev: prev, next: next),
       (t) => t,
       key ?? this.key,
       null,
@@ -587,9 +589,10 @@ extension InheritableAspectChainable<T> on DependableAspect<T> {
   }
 
   /// Add default value to this, if no satisfiable [Inheritable] of [T] can be found
-  Aspect<T, T> withDefault(T value, [Key key]) {
+  Aspect<T, T> withDefault(T value, [Key? key]) {
     return Aspect._(
-      ({next, prev, aspect}) => didUpdateWidget(prev: prev, next: next),
+      ({required next, required prev, required aspect}) =>
+          didUpdateWidget(prev: prev, next: next),
       (t) => t,
       key ?? this.key,
       (_) => value,
@@ -598,9 +601,10 @@ extension InheritableAspectChainable<T> on DependableAspect<T> {
 
   /// Add default value to this based on provided [BuildContext], if no satisfiable [Inheritable] of [T] can be found.
   Aspect<T, T> withDefaultFor(DefaultInheritableAspectOfContext<T> fn,
-      [Key key]) {
+      [Key? key]) {
     return Aspect._(
-      ({next, prev, aspect}) => didUpdateWidget(prev: prev, next: next),
+      ({required next, required prev, required aspect}) =>
+          didUpdateWidget(prev: prev, next: next),
       (t) => t,
       key ?? this.key,
       fn,
@@ -610,9 +614,9 @@ extension InheritableAspectChainable<T> on DependableAspect<T> {
   /// {@template InheritableAspect.where}
   /// Use [predicate] whether to be notified for [T]
   /// {@endtemplate}
-  Aspect<T, T> where(PredicateAspect<T> predicate, [Key key]) {
+  Aspect<T, T> where(PredicateAspect<T> predicate, [Key? key]) {
     return Aspect<T, T>._(
-      ({next, prev, aspect}) =>
+      ({required next, required prev, required aspect}) =>
           didUpdateWidget(prev: prev, next: next) &&
           predicate(next: next.valueFor(aspect), prev: prev.valueFor(aspect)),
       (it) => it,
@@ -623,9 +627,9 @@ extension InheritableAspectChainable<T> on DependableAspect<T> {
   /// {@template InheritableAspect.whereType}
   /// Notify for [T] only if it's also [R]
   /// {@endtemplate}
-  Aspect<R, T> whereType<R extends T>([Key key]) {
+  Aspect<R, T> whereType<R extends T>([Key? key]) {
     return Aspect._(
-      ({prev, next, aspect}) =>
+      ({required prev, required next, required aspect}) =>
           didUpdateWidget(prev: prev, next: next) &&
           (next.valueFor(aspect) is R),
       (t) => AspectChianingFn._whereType<T, T, R>(t, (t) => t),
@@ -648,12 +652,12 @@ extension InheritableAspectChainable<T> on DependableAspect<T> {
   /// The created [AspectOverride] depends on `this.key`, which if `null` it will throw.
   /// {@endtemplate}
   AspectOverride<ValueChanged<T>, T> operator <(ValueChanged<T> onMutate) {
-    return AspectOverride.key(key, onMutate, mutation: true);
+    return AspectOverride.key(key!, onMutate, mutation: true);
   }
 
   /// Returns an [InheritableAspect] that notifies when [other] and `this` both say [shouldNotify].
   Aspect<T, T> operator &(DependableAspect<T> other) => Aspect<T, T>._(
-        ({prev, next, aspect}) =>
+        ({required prev, required next, required aspect}) =>
             didUpdateWidget(next: next, prev: prev) &
             other.didUpdateWidget(next: next, prev: prev),
         (it) => it,
@@ -662,7 +666,7 @@ extension InheritableAspectChainable<T> on DependableAspect<T> {
 
   /// Returns an [InheritableAspect] that notifies when either [other] or `this` say [shouldNotify].
   Aspect<T, T> operator |(DependableAspect<T> other) => Aspect<T, T>._(
-        ({next, prev, aspect}) =>
+        ({required next, required prev, required aspect}) =>
             didUpdateWidget(next: next, prev: prev) |
             other.didUpdateWidget(next: next, prev: prev),
         (it) => it,
@@ -709,7 +713,7 @@ class NoAspect<T> extends EquatableAspect<T>
         TransformingAspect<T, T>,
         DefaultAspectofContext<T, T> {
   @override
-  final Key key;
+  final Key? key;
 
   /// {@macro InheritableAspect.none}
   const NoAspect(this.key) : super('NoAspect');
@@ -727,19 +731,19 @@ class NoAspect<T> extends EquatableAspect<T>
   ///
   /// {@macro InheritableAspect.of.defaultValue}
   @override
-  T of(context, {rebuild = true, T defaultValue}) {
+  T? of(context, {rebuild = true, T? defaultValue}) {
     return Inheritable.of<T>(context, aspect: this, rebuild: rebuild)
             ?.valueFor<T>(this) ??
         defaultValue;
   }
 
   @override
-  InheritableAspect<T> ensureHasKey({Key fallback}) {
+  InheritableAspect<T> ensureHasKey({fallback}) {
     return key != null ? this : NoAspect(fallback);
   }
 
   @override
-  InheritableAspect<T> clone({Key key}) {
+  InheritableAspect<T> clone({key}) {
     return NoAspect<T>(key);
   }
 }
@@ -750,6 +754,7 @@ class _ValueAspect<T> extends EquatableAspect<T>
         ClonableAspect<T>,
         DelegatingAspect<T>,
         TransformingAspect<T, T>,
+        DefaultAspectofContext<T, T>,
         DelegatingDependableAspect<T> {
   @override
   final InheritableAspect<T> delegate;
@@ -757,7 +762,7 @@ class _ValueAspect<T> extends EquatableAspect<T>
   _ValueAspect(this.delegate) : super('ValueAspect of ${delegate.debugLabel}');
 
   @override
-  DelegatingAspect<T> clone({Key key, InheritableAspect<T> delegate}) {
+  DelegatingAspect<T> clone({key, delegate}) {
     return _ValueAspect(cloneDelegate(replacement: delegate, key: key));
   }
 
@@ -766,11 +771,8 @@ class _ValueAspect<T> extends EquatableAspect<T>
     return value;
   }
 
-  /// {@macro InheritableAspect.of}
-  ///
-  /// {@macro InheritableAspect.of.defaultValue}
   @override
-  T of(context, {rebuild = true, T defaultValue}) {
+  of(context, {rebuild = true, defaultValue}) {
     return Inheritable.of<T>(context, aspect: this, rebuild: rebuild)
             ?.valueFor<T>(this) ??
         defaultValue;
@@ -795,13 +797,13 @@ class _ListenableAspect<T> extends EquatableAspect<T>
       : super('ListenableAspect of ${_delegate.debugLabel}');
 
   @override
-  DelegatingAspect<T> ensureHasKey({Key fallback}) {
+  DelegatingAspect<T> ensureHasKey({Key? fallback}) {
     _delegate = ensureDelegateHasKey(null, fallback);
     return this;
   }
 
   @override
-  bool didUpdateWidget({prev, next}) {
+  bool didUpdateWidget({required prev, required next}) {
     if (super.didUpdateWidget(prev: prev, next: next)) {
       _value = next.valueFor<T>(this);
       notifyListeners();
@@ -861,7 +863,7 @@ class _ListenableAspect<T> extends EquatableAspect<T>
   ///
   /// ```
   @override
-  ValueListenable<T> of(context, {rebuild = true, T defaultValue}) {
+  ValueListenable<T> of(context, {rebuild = true, T? defaultValue}) {
     _value = Inheritable.of<T>(
           context,
           aspect: this,
@@ -873,7 +875,7 @@ class _ListenableAspect<T> extends EquatableAspect<T>
   }
 
   @override
-  DelegatingAspect<T> clone({Key key, InheritableAspect<T> delegate}) {
+  DelegatingAspect<T> clone({key, delegate}) {
     _delegate = cloneDelegate(key: key, replacement: delegate);
 
     return this;
@@ -918,6 +920,7 @@ class _ListenableAspect<T> extends EquatableAspect<T>
   void dispose() {
     assert((() => _isDisposed = true)());
 
+    _value = null;
     notifier.dispose();
   }
 
@@ -934,9 +937,9 @@ class _ListenableAspect<T> extends EquatableAspect<T>
     notifier.removeListener(listener);
   }
 
-  T _value;
+  T? _value;
   @override
-  T get value => _value;
+  T get value => _value as T;
 }
 
 extension ValueAspect<T> on InheritableAspect<T> {
@@ -961,9 +964,9 @@ extension ListenableAspect<T> on InheritableAspect<T> {
 typedef DefaultInheritableAspectOfContext<A> = A Function(BuildContext context);
 
 typedef DidUpdateWidget<T> = bool Function({
-  Inheritable<T> next,
-  Inheritable<T> prev,
-  InheritableAspect<T> aspect,
+  required Inheritable<T> next,
+  required Inheritable<T> prev,
+  required InheritableAspect<T> aspect,
 });
 
 /// An Aspect that allows updating it's value.
@@ -994,10 +997,10 @@ abstract class AspectBatch {
   Key get key;
 
   /// Inheritables satisfying this batch's aspects.
-  Set<Inheritable<Object>> get inheritables;
+  Set<Inheritable<Object?>> get inheritables;
 
   /// InheritableAspects participating in this batch.
-  Set<InheritableAspect<Object>> get aspects;
+  Set<InheritableAspect<Object?>> get aspects;
 
   /// Apply this batch to [context]
   void apply(BuildContext context) {
@@ -1045,13 +1048,11 @@ typedef InheritableMutation<T> = T Function(Inheritable<T> inheritable);
 class AspectMutation<T> extends EquatableAspect<T>
     with ClonableAspect<T>, MutableInheritableAspect<T> {
   @override
-  final Key key;
+  final Key? key;
 
   final InheritableMutation<T> mutation;
 
-  const AspectMutation(this.mutation, [this.key])
-      : assert(mutation != null),
-        super('AspectMutation');
+  const AspectMutation(this.mutation, [this.key]) : super('AspectMutation');
 
   @override
   T mutate(Inheritable<T> inheritable) {
@@ -1063,16 +1064,16 @@ class AspectMutation<T> extends EquatableAspect<T>
     final inheritable =
         Inheritable.of<T>(context, aspect: this, rebuild: false);
 
-    final ValueChanged<T> Function(T) _defaultTransform =
-        inheritable is MutableInheritable<T> ? null : (_) => null;
+    final ValueChanged<T> Function(T)? _defaultTransform =
+        inheritable is MutableInheritable<T> ? null : (_) => (_) {};
 
     inheritable?.valueFor
-        ?.call<ValueChanged<T>>(this, _defaultTransform)
-        ?.call(mutate(inheritable));
+        .call<ValueChanged<T>>(this, _defaultTransform)
+        .call(mutate(inheritable));
   }
 
   @override
-  AspectMutation<T> clone({Key key, InheritableMutation<T> mutation}) {
+  AspectMutation<T> clone({key, InheritableMutation<T>? mutation}) {
     if ([key, mutation].whereType<Object>().isEmpty) return this;
 
     return AspectMutation(mutation ?? this.mutation, key ?? this.key);
@@ -1092,31 +1093,33 @@ class Aspect<A, T> extends EquatableAspect<T>
         TransformingAspect<A, T>,
         PatchableAspect<A, T> {
   @override
-  final Key key;
+  final Key? key;
   final A Function(T) mapper;
-  final AspectPatch<A, T> _patch;
-  final DidUpdateWidget<T> _didUpdateWidgetImpl;
-  final DefaultInheritableAspectOfContext<A> _defaultValue;
+  final AspectPatch<A, T>? _patch;
+  final DidUpdateWidget<T>? _didUpdateWidgetImpl;
+  final DefaultInheritableAspectOfContext<A>? _defaultValue;
 
   /// Create an [InheritableAspect] of [T] that depends on [Inheritable] of [T]
   /// for any changes of [A] produced by [fn].
-  const Aspect(A Function(T) fn, [Key key]) : this._(null, fn, key, null);
+  const Aspect(A Function(T) fn, [Key? key]) : this._(null, fn, key, null);
 
   /// Create an aspect [A] of [T] using [transform],
   /// which can optionaly be later patched using [patch].
   const Aspect.patchable({
-    @required AspectPatch<A, T> patch,
-    Key key,
-    A Function(T) transform,
+    required AspectPatch<A, T> patch,
+    required A Function(T) transform,
+    Key? key,
   }) : this._(null, transform, key, null, patch);
 
   const Aspect._(this._didUpdateWidgetImpl, this.mapper,
       [this.key, this._defaultValue, this._patch])
-      : assert(mapper != null),
-        super('Aspect');
+      : super('Aspect');
 
-  bool _defaultDidUpdateWidgetImpl(
-      {Inheritable<T> next, Inheritable<T> prev, InheritableAspect<T> aspect}) {
+  bool _defaultDidUpdateWidgetImpl({
+    required Inheritable<T> next,
+    required Inheritable<T> prev,
+    required InheritableAspect<T> aspect,
+  }) {
     return next.valueFor<A>(aspect, mapper) != prev.valueFor<A>(aspect, mapper);
   }
 
@@ -1124,7 +1127,7 @@ class Aspect<A, T> extends EquatableAspect<T>
       _didUpdateWidgetImpl ?? _defaultDidUpdateWidgetImpl;
 
   @override
-  bool didUpdateWidget({prev, next}) {
+  bool didUpdateWidget({required prev, required next}) {
     return didUpdateWidgetImpl(next: next, prev: prev, aspect: this);
   }
 
@@ -1135,7 +1138,8 @@ class Aspect<A, T> extends EquatableAspect<T>
 
   @override
   T patch(T value, A next) {
-    if (_patch != null) return _patch(value, next);
+    final patch = _patch;
+    if (patch is AspectPatch<A, T>) return patch(value, next);
 
     throw StateError('This aspect is not Patchable');
   }
@@ -1144,7 +1148,7 @@ class Aspect<A, T> extends EquatableAspect<T>
   ///
   /// {@macro InheritableAspect.of.defaultValue}
   @override
-  A of(context, {rebuild = true, A defaultValue}) {
+  of(context, {rebuild = true, A? defaultValue}) {
     final obj = Inheritable.of<T>(context, aspect: this, rebuild: rebuild)
         ?.valueFor(this, mapper);
 
@@ -1176,14 +1180,14 @@ class Aspect<A, T> extends EquatableAspect<T>
 
   @override
   Aspect<A, T> clone({
-    Key key,
-    final A Function(T) mapper,
-    final AspectPatch<A, T> patch,
-    final DidUpdateWidget<T> didUpdateWidget,
-    final DefaultInheritableAspectOfContext<A> defaultValue,
+    Key? key,
+    final A Function(T)? mapper,
+    final AspectPatch<A, T>? patch,
+    final DidUpdateWidget<T>? didUpdateWidget,
+    final DefaultInheritableAspectOfContext<A>? defaultValue,
   }) {
     if ([key, mapper, patch, didUpdateWidget, defaultValue]
-        .whereType<Object>()
+        .where((o) => o != null)
         .isEmpty) return this;
 
     return Aspect._(
@@ -1196,7 +1200,7 @@ class Aspect<A, T> extends EquatableAspect<T>
   }
 
   @override
-  InheritableAspect<T> ensureHasKey({Key fallback}) {
+  InheritableAspect<T> ensureHasKey({fallback}) {
     return key != null ? this : clone(key: fallback);
   }
 }
@@ -1204,36 +1208,39 @@ class Aspect<A, T> extends EquatableAspect<T>
 // TODO: Extract out TransformingAspect applicable extension methods
 extension AspectChianingFn<R, T> on Aspect<R, T> {
   /// Use [other] to map the already mapped value by [mapper] for notifications of [T]
-  Aspect<RR, T> map<RR>(RR Function(R) other, [Key key]) {
+  Aspect<RR, T> map<RR>(RR Function(R) other, [Key? key]) {
+    final defaultValue = _defaultValue;
     return Aspect<RR, T>._(
       null,
       (t) => other(mapper(t)),
       key ?? this.key,
-      (_) => _defaultValue != null ? other?.call(_defaultValue?.call(_)) : null,
+      defaultValue is DefaultInheritableAspectOfContext<R>
+          ? (_) => other(defaultValue(_))
+          : null,
     );
   }
 
   /// Allow patching [R] of [T] using [patch]
-  Aspect<R, T> withPatch(AspectPatch<R, T> patch, [Key key]) {
+  Aspect<R, T> withPatch(AspectPatch<R, T> patch, [Key? key]) {
     return clone(key: key, patch: patch);
   }
 
   /// Add default value to this, if no satisfiable [Inheritable] of [T] can be found
-  Aspect<R, T> withDefault(R value, [Key key]) {
+  Aspect<R, T> withDefault(R value, [Key? key]) {
     return clone(key: key, defaultValue: (_) => value);
   }
 
   /// Add default value to this based on provided [BuildContext], if no satisfiable [Inheritable] of [T] can be found.
   Aspect<R, T> withDefaultFor(DefaultInheritableAspectOfContext<R> fn,
-      [Key key]) {
+      [Key? key]) {
     return clone(key: key, defaultValue: fn);
   }
 
   /// {@macro InheritableAspect.where}
-  Aspect<R, T> where(PredicateAspect<R> predicate, [Key key]) {
+  Aspect<R, T> where(PredicateAspect<R> predicate, [Key? key]) {
     return clone(
       key: key,
-      didUpdateWidget: ({next, prev, aspect}) =>
+      didUpdateWidget: ({required next, required prev, required aspect}) =>
           didUpdateWidgetImpl(next: next, prev: prev, aspect: aspect) &
           predicate(
             next: next.valueFor(this, mapper),
@@ -1250,18 +1257,23 @@ extension AspectChianingFn<R, T> on Aspect<R, T> {
       return mapped;
     }
 
-    return null;
+    throw StateError(
+        'Expected mapped value to be of type $RR but was ${mapper.runtimeType}');
   }
 
   /// {@macro InheritableAspect.whereType}
-  Aspect<RR, T> whereType<RR extends R>([Key key]) {
+  Aspect<RR, T> whereType<RR extends R>([Key? key]) {
+    final defaultValue = _defaultValue;
     return Aspect<RR, T>._(
-      ({next, prev, aspect}) =>
+      ({required next, required prev, required aspect}) =>
+          // This uses [mapper] and not the updated mapper below
           didUpdateWidgetImpl(next: next, prev: prev, aspect: aspect) &
           (next is RR),
       (t) => _whereType<T, R, RR>(t, mapper),
       key ?? this.key,
-      (_) => _defaultValue != null && R == RR ? _defaultValue(_) as RR : null,
+      defaultValue is DefaultInheritableAspectOfContext<R> && R == RR
+          ? (_) => defaultValue(_) as RR
+          : null,
     );
   }
 
@@ -1272,14 +1284,14 @@ extension AspectChianingFn<R, T> on Aspect<R, T> {
 
   /// Returns an [InheritableAspect] that notifies when [other] and `this` both say [shouldNotify].
   Aspect<R, T> operator &(DependableAspect<T> other) => clone(
-        didUpdateWidget: ({next, prev, aspect}) =>
+        didUpdateWidget: ({required next, required prev, required aspect}) =>
             didUpdateWidgetImpl(next: next, prev: prev, aspect: aspect) &
             other.didUpdateWidget(next: next, prev: prev),
       );
 
   /// Returns an [InheritableAspect] that notifies when either [other] or `this` say [shouldNotify].
   Aspect<R, T> operator |(DependableAspect<T> other) => clone(
-        didUpdateWidget: ({next, prev, aspect}) =>
+        didUpdateWidget: ({required next, required prev, required aspect}) =>
             didUpdateWidgetImpl(next: next, prev: prev, aspect: aspect) |
             other.didUpdateWidget(next: next, prev: prev),
       );
@@ -1288,7 +1300,7 @@ extension AspectChianingFn<R, T> on Aspect<R, T> {
 typedef AspectWidgetBuilder<T> = Widget Function(
   BuildContext context,
   T aspect,
-  Widget child,
+  Widget? child,
 );
 
 /// Convenience widget to get [aspect] as part of the [build] method
@@ -1297,13 +1309,13 @@ class AspectBuilder<A, T> extends StatelessWidget {
   final TransformingAspect<A, T> aspect;
 
   /// Widget builder that get's [aspect] fed into it
-  final AspectWidgetBuilder<A> builder;
+  final AspectWidgetBuilder<A?> builder;
 
   /// Child widget that doesn't depend on [aspect]
-  final Widget child;
+  final Widget? child;
 
   /// Default value when [aspect] returns `null`
-  final A defaultValue;
+  final A? defaultValue;
 
   /// Create a widget that provides [aspect] to it's decedents.
   ///
@@ -1317,18 +1329,22 @@ class AspectBuilder<A, T> extends StatelessWidget {
   /// )
   /// ```
   const AspectBuilder({
-    @required this.aspect,
-    @required this.builder,
+    required this.aspect,
+    required this.builder,
     this.child,
     this.defaultValue,
-    Key key,
-  })  : assert(aspect != null),
-        assert(builder != null),
-        super(key: key);
+    Key? key,
+  }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    return builder(context, aspect.of(context) ?? defaultValue, child);
+    final aspect = this.aspect;
+    return builder(
+        context,
+        aspect is DefaultAspectofContext<A, T>
+            ? aspect.of(context, defaultValue: defaultValue)
+            : aspect.of(context) ?? defaultValue,
+        child);
   }
 }
 
@@ -1356,18 +1372,13 @@ class Inheritable<T> extends InheritedWidget {
   ///
   /// {@endtemplate}
   // TODO: if Inheritable is allowed to extend, provide Inheritable.inheriFrom
-  static Inheritable<T> of<T>(
+  static Inheritable<T>? of<T>(
     BuildContext context, {
-    InheritableAspect<T> aspect,
+    required InheritableAspect<T> aspect,
     bool rebuild = true,
     bool nullOk = true,
     bool mutable = false,
   }) {
-    assert(mutable != null);
-    if (aspect == null)
-      throw UnsupportedError(
-        'Cannot depend on Inheritable<$T> without specifying an aspect',
-      );
     final result =
         _findInheritableSupportingAspect<T>(context, aspect, mutable: mutable);
 
@@ -1395,18 +1406,18 @@ class Inheritable<T> extends InheritedWidget {
     return result.widget;
   }
 
-  static _InheritableElement<T> _findEnclosingInheritableElement<T>(
-      BuildContext context) {
+  static _InheritableElement<T>? _findEnclosingInheritableElement<T>(
+      BuildContext? context) {
     if (context == null) return null;
 
-    _InheritableElement<T> result;
+    _InheritableElement<T>? result;
 
     final inheritable =
         context.getElementForInheritedWidgetOfExactType<Inheritable<T>>()
-            as _InheritableElement<T>;
+            as _InheritableElement<T>?;
     final mutable = context
             .getElementForInheritedWidgetOfExactType<_MutableInheritable<T>>()
-        as _InheritableElement<T>;
+        as _InheritableElement<T>?;
 
     // If we have both implementations available, prefer the one with higher depth
     if (inheritable != null && mutable != null) {
@@ -1427,8 +1438,8 @@ class Inheritable<T> extends InheritedWidget {
     return result;
   }
 
-  static _InheritableElement<T> _findInheritableSupportingAspect<T>(
-    BuildContext context,
+  static _InheritableElement<T>? _findInheritableSupportingAspect<T>(
+    BuildContext? context,
     InheritableAspect<T> aspect, {
     bool mutable = false,
   }) {
@@ -1444,7 +1455,7 @@ class Inheritable<T> extends InheritedWidget {
     // Go up ancestor, if there is any.
     /// Copied logic from [InheritedModel._findModels]
     // TODO: This might not actually be required, investigate, whether flutter devs added this on a fluke.
-    Element parent;
+    Element? parent;
     element.visitAncestorElements((Element ancestor) {
       parent = ancestor;
       return false;
@@ -1457,15 +1468,16 @@ class Inheritable<T> extends InheritedWidget {
     );
   }
 
-  static Set<Object> newOverridesSet<T>(Set<AspectOverride<Object, T>> other) {
+  static Set<Object> newOverridesSet<T>(
+      Set<AspectOverride<Object?, T>>? other) {
     if (other == null) return {};
-    bool hashKeysOnly;
+    bool? hashKeysOnly;
     return HashSet(
       isValidKey: (obj) => obj != null,
       hashCode: (Object obj) {
         // after the first time, we don't care for other objects
         hashKeysOnly ??= obj is _AspectOverrideByKey;
-        if (hashKeysOnly && obj is InheritableAspect<T>) {
+        if (hashKeysOnly! && obj is InheritableAspect<T>) {
           return obj.key.hashCode;
         }
 
@@ -1487,10 +1499,10 @@ class Inheritable<T> extends InheritedWidget {
   Set<AspectOverride<Object, T>> get overrides => Set.from(_overrides);
 
   const Inheritable._({
-    T value,
-    Key key,
-    Set<Object> overrides,
-    Widget child,
+    required T value,
+    Key? key,
+    Set<Object>? overrides,
+    Widget? child,
   })  : _value = value,
         _overrides = overrides ?? const {},
         super(key: key, child: child ?? const SizedBox.shrink());
@@ -1499,9 +1511,9 @@ class Inheritable<T> extends InheritedWidget {
   ///
   /// Optionally specify [onRequestUpdate]
   const Inheritable({
-    T value,
-    Key key,
-    Widget child,
+    required T value,
+    Key? key,
+    Widget? child,
   }) : this._(
           value: value,
           key: key,
@@ -1547,27 +1559,27 @@ class Inheritable<T> extends InheritedWidget {
   /// [strict] is only used in debug mode.
 
   static Widget supply({
-    List<Inheritable<Object>> inheritables,
-    Widget child,
+    required List<Inheritable<Object?>> inheritables,
+    Widget? child,
     bool strict = true,
   }) {
-    Widget result = child;
-    Map<Type, Set<Key>> _;
+    Widget? result = child;
+    Map<Type, Set<Key?>>? _;
 
     // TODO: Add further optimizations to Inheritable.supply
     for (var inheritable in inheritables.reversed) {
       assert(!strict ||
           (() {
-            _ ??= <Type, Set<Key>>{};
+            _ ??= <Type, Set<Key?>>{};
             final type = inheritable.runtimeType;
             final key = inheritable.key;
-            final keys = _[type] ??= HashSet(
+            final keys = _?[type] ??= HashSet(
               equals: (a, b) => a == b,
               hashCode: (a) => a.hashCode,
               isValidKey: (_) => true, // null is also valid
             );
 
-            if (keys.contains(key)) {
+            if (keys!.contains(key)) {
               throw StateError(
                 'Found duplicate inheritable [$type] with key [$key] in $keys. '
                 'This is essentially overriding access to the original inheritable. '
@@ -1589,7 +1601,7 @@ class Inheritable<T> extends InheritedWidget {
       return true;
     })());
 
-    return result;
+    return result!;
   }
 
   /// Create an [Inheritable] that overrides [T] with given [value] for the widget sub-tree.
@@ -1618,11 +1630,11 @@ class Inheritable<T> extends InheritedWidget {
 
   /// ```
   static Inheritable<T> override<T, SubType extends T>({
-    SubType value,
-    Key key,
-    Set<AspectOverride<Object, T>> overrides,
-    ValueChanged<T> onMutate,
-    Widget child,
+    required SubType value,
+    Key? key,
+    Set<AspectOverride<Object?, T>>? overrides,
+    ValueChanged<T>? onMutate,
+    Widget? child,
     bool strict = true,
   }) {
     assert(
@@ -1658,7 +1670,7 @@ class Inheritable<T> extends InheritedWidget {
   }
 
   /// Convenience method when [Inheritable.mutable] should ignore all mutations
-  static void ignoreMutation(Object obj) {}
+  static void ignoreMutation(Object? obj) {}
 
   /// Mutable variant of [Inheritable], users are to provide [onMutate] to allow
   /// value to change.
@@ -1666,8 +1678,8 @@ class Inheritable<T> extends InheritedWidget {
   /// However dependents have no say whether a supplied value should be
   /// updated or not.
   const factory Inheritable.mutable({
-    @required ValueChanged<T> onMutate,
-    T value,
+    required ValueChanged<T> onMutate,
+    required T value,
     Key key,
     Widget child,
   }) = _MutableInheritable<T>;
@@ -1677,10 +1689,10 @@ class Inheritable<T> extends InheritedWidget {
   ///
   /// Returns `this` if all parameters are null.
   Inheritable<T> copyWith({
-    Key key,
-    T value,
-    Set<AspectOverride<Object, T>> overrides,
-    Widget child,
+    Key? key,
+    T? value,
+    Set<AspectOverride<Object, T>>? overrides,
+    Widget? child,
   }) {
     if ([key, value, overrides, child].whereType<Object>().isEmpty) return this;
 
@@ -1698,11 +1710,11 @@ class Inheritable<T> extends InheritedWidget {
   /// provides the overridden value if there is one, or [_value] by [transform]
   ///
   /// Optionally provide [transform]. By default [_value] is simply casted
-  A valueFor<A>(InheritableAspect<T> aspect, [A Function(T) transform]) {
+  A valueFor<A>(InheritableAspect<T> aspect, [A Function(T)? transform]) {
     assert(isSupportedAspect(aspect));
     final maybeOverride = _overrides.lookup(aspect);
 
-    if (maybeOverride != null && maybeOverride is AspectOverride<Object, T>) {
+    if (maybeOverride is AspectOverride) {
       if (maybeOverride.override is A || maybeOverride.override == null)
         return maybeOverride.override as A;
       else
@@ -1711,8 +1723,6 @@ class Inheritable<T> extends InheritedWidget {
           'expected value of type $A but got ${maybeOverride.override.runtimeType}',
         );
     }
-
-    if (_value == null) return null;
 
     if (aspect is TransformingAspect<A, T>) {
       transform ??= aspect.transform;
@@ -1771,14 +1781,14 @@ mixin MutableInheritable<T> on Inheritable<T> {
   /// ```dart
   /// MutableInheritable.of<User>(context).value = User('new', 'user');
   /// ```
-  static MutableInheritable<T> of<T>(BuildContext context,
-      [InheritableAspect<T> aspect]) {
+  static MutableInheritable<T>? of<T>(BuildContext context,
+      {required InheritableAspect<T> aspect}) {
     /// We don't use [Inheritable._findEnclosingInheritableElement<T>(context)]
     /// here because [Inheritable] is not accepted in this case
 
     return Inheritable._findInheritableSupportingAspect<T>(context, aspect,
             mutable: true)
-        ?.widget as MutableInheritable<T>;
+        ?.widget as MutableInheritable<T>?;
   }
 }
 
@@ -1787,22 +1797,18 @@ class _MutableInheritable<T> extends Inheritable<T>
   final ValueChanged<T> onMutate;
 
   const _MutableInheritable._({
-    @required this.onMutate,
-    T value,
-    Key key,
-    Set<Object> overrides,
-    Widget child,
-  })  : assert(
-          onMutate != null,
-          'Prefer creating an Inheritable if all changes will be rejected',
-        ),
-        super._(value: value, key: key, overrides: overrides, child: child);
+    required this.onMutate,
+    required T value,
+    Key? key,
+    Set<Object>? overrides,
+    Widget? child,
+  }) : super._(value: value, key: key, overrides: overrides, child: child);
 
   const _MutableInheritable({
-    ValueChanged<T> onMutate,
-    T value,
-    Key key,
-    Widget child,
+    required ValueChanged<T> onMutate,
+    required T value,
+    Key? key,
+    Widget? child,
   }) : this._(
           onMutate: onMutate,
           value: value,
@@ -1811,7 +1817,7 @@ class _MutableInheritable<T> extends Inheritable<T>
         );
 
   @override
-  A valueFor<A>(InheritableAspect<T> aspect, [A Function(T p1) transform]) {
+  A valueFor<A>(InheritableAspect<T> aspect, [A Function(T p1)? transform]) {
     if (aspect is MutableInheritableAspect<T>) {
       assert(<A>[] is List<ValueChanged<T>>);
       return super.valueFor(aspect, transform ?? (_) => onMutate as A);
@@ -1822,7 +1828,7 @@ class _MutableInheritable<T> extends Inheritable<T>
 
   @override
   void mutateBy(MutableInheritableAspect<T> aspect) {
-    valueFor<ValueChanged<T>>(aspect)?.call(aspect.mutate(this));
+    valueFor<ValueChanged<T>?>(aspect)?.call(aspect.mutate(this));
   }
 
   /// Create a new [Inheritable] of [T] with it's properties changed with the
@@ -1831,11 +1837,11 @@ class _MutableInheritable<T> extends Inheritable<T>
   /// Returns `this` if all parameters are null.
   @override
   Inheritable<T> copyWith({
-    Key key,
-    T value,
-    Set<AspectOverride<Object, T>> overrides,
-    Widget child,
-    ValueChanged<T> onMutate,
+    Key? key,
+    T? value,
+    Set<AspectOverride<Object, T>>? overrides,
+    Widget? child,
+    ValueChanged<T>? onMutate,
   }) {
     if ([key, value, onMutate, child, overrides].whereType<Object>().isEmpty)
       return this;
@@ -1875,15 +1881,15 @@ class _InheritableElement<T> extends InheritedElement {
   }
 
   bool removeAspect(Element dependent, InheritableAspect<T> aspect) {
-    return removeKey(dependent, aspect?.key);
+    return removeKey(dependent, aspect.key!);
   }
 
   bool removeAllAspects(Element dependent,
-      [Set<InheritableAspect<T>> aspects]) {
+      [Set<InheritableAspect<T>>? aspects]) {
     return removeAllKeys(
       dependent,
       // if it's null, remove all aspects
-      aspects?.map((a) => a.key)?.toSet(),
+      aspects?.map((a) => a.key).toSet(),
     );
   }
 
@@ -1898,8 +1904,8 @@ class _InheritableElement<T> extends InheritedElement {
     return removed;
   }
 
-  bool removeAllKeys(Element dependent, [Set<Key> keys]) {
-    if (keys != null && keys.isEmpty) return false;
+  bool removeAllKeys(Element dependent, [Set<Key?>? keys]) {
+    if (keys != null && keys.whereType<Object>().isEmpty) return false;
 
     final dependencies = getDependencies(dependent);
 
@@ -1912,32 +1918,32 @@ class _InheritableElement<T> extends InheritedElement {
       return true;
     }
 
-    keys = Set.of(keys);
+    final _keys = Set.of(keys.whereType<Key>());
 
-    dependencies.removeWhere((k, _) => keys.remove(k));
+    dependencies.removeWhere((k, _) => _keys.remove(k));
 
-    return keys.isEmpty;
+    return _keys.isEmpty;
   }
 
   @override
-  Map<Key, DependableAspect<T>> getDependencies(Element dependent) {
-    return super.getDependencies(dependent) as Map<Key, DependableAspect<T>>;
+  Map<Key, DependableAspect<T>>? getDependencies(Element dependent) {
+    return super.getDependencies(dependent) as Map<Key, DependableAspect<T>>?;
   }
 
   @override
-  void updateDependencies(Element dependent, Object aspect) {
+  void updateDependencies(Element dependent, Object? aspect) {
     final dependencies = getDependencies(dependent) ?? _newMap();
 
     if (aspect is DependableAspect<T>) {
       // This allow replacing aspects by using same key
-      dependencies[aspect.key] = aspect;
+      dependencies[aspect.key!] = aspect;
       setDependencies(dependent, dependencies);
     } else {
       /// [dependent] is requesting unconditional notifications. Or the aspect
       /// can't be used for depending on `this`
       /// Disallow that.
 
-      InformationCollector collector;
+      InformationCollector? collector;
       assert(() {
         collector = () sync* {
           yield DiagnosticsProperty<Widget>(
@@ -2014,7 +2020,7 @@ class _BuildContextAspect {
   /// {@macro InheritableAspect.of.defaultValue}
   ///
   /// {@endtemplate}
-  A call<A, T>(ExtractAspect<A, T> extract, {A defaultValue, Key key}) {
+  A? call<A, T>(ExtractAspect<A, T> extract, {A? defaultValue, Key? key}) {
     return _dispose((context) {
       return Aspect<A, T>(extract, key).of(
         context,
@@ -2035,7 +2041,7 @@ class _BuildContextAspect {
   }
 
   /// {@macro BuildContextAspect.call}
-  A get<A, T>(ExtractAspect<A, T> extract, {A defaultValue, Key key}) {
+  A? get<A, T>(ExtractAspect<A, T> extract, {A? defaultValue, Key? key}) {
     return call(extract, defaultValue: defaultValue, key: key);
   }
 
@@ -2044,7 +2050,7 @@ class _BuildContextAspect {
   ///
   /// You can also specify [defaultValue] when there is no enclosing
   /// [Inheritable.model] of [T]
-  T where<T>(PredicateAspect<T> predicate, {T defaultValue, Key key}) {
+  T? where<T>(PredicateAspect<T> predicate, {T? defaultValue, Key? key}) {
     return _dispose((context) {
       return NoAspect<T>(key)
           .where(predicate)
@@ -2078,9 +2084,9 @@ class _BuildContextAspect {
   /// `false`: Removed some of the [aspects] or none of them.
   // TODO: write test for context.removeAll
   @visibleForTesting
-  bool removeAll<T>([Set<InheritableAspect<T>> aspects]) {
+  bool removeAll<T>([Set<InheritableAspect<T>>? aspects]) {
     return _dispose((context) {
-      final _aspects = List.of(aspects);
+      final _aspects = List.of(aspects ?? <InheritableAspect<T>>{});
       for (var i = 0; i < _aspects.length; i++) {
         final element = Inheritable._findInheritableSupportingAspect<T>(
           context,
@@ -2144,7 +2150,7 @@ class _BuildContextAspect {
     'Prefer using [removeAll] instead.',
   )
   // TODO: write test for context.removeAllKeys
-  bool removeAllKeys<T>([Set<Key> keys]) {
+  bool removeAllKeys<T>([Set<Key>? keys]) {
     assert(
       T != dynamic,
       'Specify the exact type of Inheritable, dynamic is probably not what you want',
@@ -2169,7 +2175,7 @@ class _BuildContextAspect {
   ///     Inheritable.of<YourValue>(context, aspect: const NoAspect<YourValue>())
   ///
   /// {@endtemplate}
-  T none<T>({T defaultValue, Key key}) {
+  T? none<T>({T? defaultValue, Key? key}) {
     return _dispose((context) {
       return InheritableAspect.none<T>(key).of(
         context,

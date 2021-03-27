@@ -43,14 +43,14 @@ class AsyncAspectBuilder<A, T> extends StatelessWidget {
   final AsyncWidgetBuilder<A> builder;
 
   const AsyncAspectBuilder({
-    Key key,
-    this.builder,
-    this.aspect,
+    required this.builder,
+    required this.aspect,
+    Key? key,
   }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    return builder(context, aspect.of(context));
+    return builder(context, aspect.of(context)!);
   }
 }
 
@@ -95,7 +95,7 @@ mixin LazyAspect<T> on StatefulInheritableAspect<T> {
 // }
 @visibleForTesting
 mixin MemoizedLazyAspect<T> on LazyAspect<T> {
-  T _memoized;
+  T? _memoized;
   @override
   get value => _memoized ??= super.value;
 
@@ -136,24 +136,24 @@ mixin AutoDisposeAspectResources<E extends ComponentElement> on Widget {
 }
 @visibleForTesting
 mixin AutoDisposeAspectResourcesElement on Element {
-  Map<DisposableAspect<Object>, Object> _aspectsInUse;
+  late Map<DisposableAspect<Object>, Object> _aspectsInUse;
 
   void addResourceForAspect<R>(DisposableAspect<Object> aspect, R resource) =>
-      _aspectsInUse[aspect] = resource;
+      _aspectsInUse[aspect] = resource as Object;
 
   R getResourceForAspect<R>(DisposableAspect<Object> aspect) =>
       _aspectsInUse[aspect] as R;
 
   @override
-  void mount(Element parent, newSlot) {
+  void mount(Element? parent, newSlot) {
     _aspectsInUse = {};
     super.mount(parent, newSlot);
   }
 
   @override
   void unmount() {
-    _aspectsInUse?.forEach((a, _) => a.dispose(this));
-    _aspectsInUse = null;
+    _aspectsInUse.forEach((a, _) => a.dispose(this));
+    _aspectsInUse.clear();
 
     super.unmount();
   }
@@ -176,7 +176,7 @@ class AutoDisposeAspectResourcesStatefulElement extends StatefulElement
 @visibleForTesting
 class AspectListenableBuilder<A, T> extends StatelessWidget
     with AutoDisposeAspectResources<StatelessElement> {
-  const AspectListenableBuilder({Key key}) : super(key: key);
+  const AspectListenableBuilder({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {

@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'inheritable.dart';
 
-bool _equals({Object prev, Object next}) {
+bool _equals({required Object? prev, required Object? next}) {
   return next != prev;
 }
 
@@ -25,19 +25,16 @@ PredicateAspect<T> debounce<T>(
   PredicateAspect<T> shouldNotify = _equals,
   bool leading = false,
 }) {
-  assert(leading != null);
-  assert(shouldNotify != null);
-  assert(duration != null);
   bool _exhausted = false;
-  T _lastValue;
+  T? _lastValue;
 
-  Timer timer;
+  Timer? timer;
   void stop() {
     _exhausted = true;
     timer = null;
   }
 
-  return ({T prev, T next}) {
+  return ({required T prev, required T next}) {
     _lastValue ??= leading ? next : prev;
 
     /// After notifying for leading change, stop notifying for it
@@ -58,7 +55,7 @@ PredicateAspect<T> debounce<T>(
     // Allows restarting timer for next run
     _exhausted = false;
 
-    if (shouldNotify(next: next, prev: _lastValue)) {
+    if (shouldNotify(next: next, prev: _lastValue!)) {
       _lastValue = next;
       return true;
     }
