@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.0-beta.1
+
+- Switch to NNBD (Dart 2.12)
+
 ## 1.0.0-dev.1
 
 - First public release
