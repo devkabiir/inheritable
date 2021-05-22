@@ -36,7 +36,9 @@ mixin TransformingAspect<A, T> on InheritableAspect<T> {
   A transform(T value);
 
   @override
-  A? of(BuildContext context, {rebuild = true});
+  A? of(BuildContext context, {rebuild = true}) =>
+      (super.of(context, rebuild: rebuild) as Inheritable<T>?)
+          ?.valueFor(this, transform);
 }
 
 /// An [InheritableAspect] that allows providing a defaultValue in it's [of] method
@@ -49,7 +51,8 @@ mixin DefaultAspectofContext<A, T> on TransformingAspect<A, T> {
   /// no value could be produced.
   /// {@endtemplate}
   @override
-  A? of(BuildContext context, {rebuild = true, A? defaultValue});
+  A? of(BuildContext context, {rebuild = true, A? defaultValue}) =>
+      super.of(context, rebuild: rebuild) ?? defaultValue;
 }
 
 abstract class AspectOverride<A, T> {
