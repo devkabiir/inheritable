@@ -8,6 +8,13 @@ import 'package:meta/meta.dart';
 
 export 'extensions.dart';
 
+class _Lock {
+  const _Lock();
+}
+
+/// Prevents method override when used as a default value
+const _lockMethodOverride = _Lock();
+
 /// Given [T] extract certain aspect [A] from [it] and return that.
 ///
 /// You can return anything as long as it satisfies type [A]
@@ -492,7 +499,7 @@ class _ByInheritableAspect<A, T> extends EquatableAspect<T>
   }
 
   @override
-  A transform(T value) {
+  transform(value) {
     final dynamic delegate = this.delegate;
     if (delegate is TransformingAspect<A, T>) return delegate.transform(value);
 
@@ -500,10 +507,10 @@ class _ByInheritableAspect<A, T> extends EquatableAspect<T>
   }
 
   @override
-  A of(BuildContext context, {bool rebuild = true}) {
+  of(context, {rebuild = true}) {
     final dynamic result =
         Inheritable.of(context, aspect: this, rebuild: rebuild)
-            ?.valueFor(delegate);
+            ?.valueFor<A>(delegate);
     if (result is A || result == null) return result as A;
 
     throw UnsupportedError(
@@ -734,10 +741,8 @@ class NoAspect<T> extends EquatableAspect<T>
   ///
   /// {@macro InheritableAspect.of.defaultValue}
   @override
-  T? of(context, {rebuild = true, T? defaultValue}) {
-    return Inheritable.of<T>(context, aspect: this, rebuild: rebuild)
-            ?.valueFor<T>(this) ??
-        defaultValue;
+  of(context, {rebuild = true, T? defaultValue}) {
+    return super.of(context, rebuild: rebuild, defaultValue: defaultValue);
   }
 
   @override
@@ -978,13 +983,23 @@ typedef DidUpdateWidget<T> = bool Function({
 /// be used for it's original purpose or can it be?
 mixin MutableInheritableAspect<T> on InheritableAspect<T> {
   /// Given [inheritable], return what the next [Inheritable] of [T] should be.
-  T mutate(MutableInheritable<T> inheritable);
+  T mutate(Inheritable<T> inheritable);
+
+  /// Given [inheritable], apply [mutate] to it
+  void applyTo(Inheritable<T> inheritable) {
+    final ValueChanged<T> Function(T)? _defaultTransform =
+        inheritable is MutableInheritable<T> ? null : (_) => (_) {};
+
+    inheritable.valueFor
+        .call<ValueChanged<T>>(this, _defaultTransform)
+        .call(mutate(inheritable));
+  }
 
   /// Apply [mutate] to nearest enclosing [Inheritable.mutable] of [T] to given [context]
   void apply(BuildContext context);
 
   @override
-  of(context, {rebuild = true}) {
+  of(context, {rebuild = true, _Lock methodOverride = _lockMethodOverride}) {
     throw UnsupportedError(
       'Cannot use MutableInheritableAspect as dependency. '
       'If you meant to use it as mutation use [apply]. '
@@ -1005,6 +1020,13 @@ abstract class AspectBatch {
   /// InheritableAspects participating in this batch.
   Set<InheritableAspect<Object?>> get aspects;
 
+  /// We we apply patches from top iterable to bottom, bottom ones will have the
+  /// benefit of already being marked to rebuild
+  ///
+  /// If we apply from bottom to top, bottom ones might not even need to be
+  /// updated by top rebuilds if they are all using inheritable for dependency,
+  /// since we encourage to pick properties dependents are interested in.
+
   /// Apply this batch to [context]
   void apply(BuildContext context) {
     /// For every aspect, get the first satisfiable inheritable. There may not
@@ -1018,6 +1040,33 @@ abstract class AspectBatch {
     /// For each aspect -> inheritable pair, perform `valueFor(aspect)?.call(aspect.mutate(inheritable))`
     ///
     /// Finish batch transaction for each inheritable
+    ///
+
+    final pairs = <Inheritable<Object?>, Set<InheritableAspect<Object?>>>{};
+
+    final aspects = this.aspects.toList();
+
+    /// Mutate iterables in bottom-up approach
+    for (var i in inheritables.toList().reversed) {
+      var l = aspects.length;
+
+      final pending = [];
+
+      /// Apply aspects in insertion order
+      for (var a = 0; a < l; a++) {
+        if (i.isSupportedAspect(aspects[a])) {
+          final aspect = aspects.removeAt(a);
+          pairs[i] = (pairs[i] ?? {})..add(aspect);
+          l -= 1;
+        }
+      }
+    }
+
+    pairs.forEach((inheritable, aspects) {
+      aspects
+          .whereType<MutableInheritableAspect<Object?>>()
+          .forEach((a) => a.applyTo(inheritable));
+    });
   }
 }
 
@@ -1067,12 +1116,7 @@ class AspectMutation<T> extends EquatableAspect<T>
     final inheritable =
         Inheritable.of<T>(context, aspect: this, rebuild: false);
 
-    final ValueChanged<T> Function(T)? _defaultTransform =
-        inheritable is MutableInheritable<T> ? null : (_) => (_) {};
-
-    inheritable?.valueFor
-        .call<ValueChanged<T>>(this, _defaultTransform)
-        .call(mutate(inheritable));
+    if (inheritable is Inheritable<T>) applyTo(inheritable);
   }
 
   @override
@@ -1094,6 +1138,7 @@ class Aspect<A, T> extends EquatableAspect<T>
         ClonableAspect<T>,
         DependableAspect<T>,
         TransformingAspect<A, T>,
+        DefaultAspectofContext<A, T>,
         PatchableAspect<A, T> {
   @override
   final Key? key;
@@ -1151,11 +1196,12 @@ class Aspect<A, T> extends EquatableAspect<T>
   ///
   /// {@macro InheritableAspect.of.defaultValue}
   @override
-  of(context, {rebuild = true, A? defaultValue}) {
-    final obj = Inheritable.of<T>(context, aspect: this, rebuild: rebuild)
-        ?.valueFor(this, mapper);
-
-    return obj ?? _defaultValue?.call(context) ?? defaultValue;
+  of(context, {rebuild = true, defaultValue}) {
+    // We don't supply default value to suprt because it might be required to
+    // compute it lazily.
+    return super.of(context, rebuild: rebuild) ??
+        _defaultValue?.call(context) ??
+        defaultValue;
   }
 
   @override
