@@ -1,0 +1,51 @@
+name: inheritable
+
+on:
+  push:
+
+# env:
+  # ACTIONS_RUNNER_DEBUG: true
+  # FLUTTER_VERSION: "2.2.3"
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout the code
+        uses: actions/checkout@v2
+
+      - name: Install and set Flutter version
+        uses: subosito/flutter-action@v1.5.3
+        with:
+          channel: 'stable'
+
+      - name: install packages
+        run: flutter pub get
+
+      - name: Analyze
+        run: flutter analyze
+
+      - name: prepare test
+        run: |
+          ./test/coverage_helper.sh
+
+      - name: Run tests
+        run: |
+          flutter test --coverage
+
+      # - name: get coverage and prepare percentage for badge
+      #   run: |
+      #     brew install lcov
+      #     PERCENTAGE=$(lcov --remove coverage/lcov.info 'lib/*/*.freezed.dart' 'lib/*/*.g.dart' 'lib/*/*.part.dart' 'lib/generated/*.dart' 'lib/generated/*.*.dart' -o coverage/lcov.info | egrep '\d+.\d+%' | cut -d' ' -f4)
+      #     echo "COVERAGE=${PERCENTAGE}" >> $GITHUB_ENV
+      
+      # - name: Create the Badge
+      #   uses: schneegans/dynamic-badges-action@v1.0.0
+      #   with:
+      #     auth: ${{ secrets.GIST_ACCESS_COVERAGE }}
+      #     gistID: 8a0e501902cba357972bc73b1f911804
+      #     filename: capp_bauhaus_coverage_badge_last_run.json
+      #     label: coverage-last-run
+      #     message: ${{ env.COVERAGE }}
+      #     color: blue
