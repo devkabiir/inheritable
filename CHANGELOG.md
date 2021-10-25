@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.0
+
+- Improve tests
+- Flutter 2.5 & Dart 2.14
+- Fix flutter/flutter#83104 via a workaround
+
 ## 1.0.0-beta.1
 
 - Switch to NNBD (Dart 2.12)

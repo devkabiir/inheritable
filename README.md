@@ -1,4 +1,4 @@
-# Inheritable [pre-release]
+# Inheritable
 
 Efficient by default, zero-dependency, declarative state/dependency management for flutter.
 
