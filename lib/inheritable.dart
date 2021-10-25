@@ -1050,6 +1050,7 @@ abstract class AspectBatch {
     for (var i in inheritables.toList().reversed) {
       var l = aspects.length;
 
+      // ignore: unused_local_variable
       final pending = [];
 
       /// Apply aspects in insertion order
@@ -1913,11 +1914,13 @@ class _InheritableElement<T> extends InheritedElement {
   @override
   Inheritable<T> get widget => super.widget as Inheritable<T>;
 
+  // ignore: unused_element
   int _hashAspect<T>(InheritableAspect<T> aspect) {
     if (aspect is EquatableAspect<T>) return aspect._hash();
     return aspect.hashCode;
   }
 
+  // ignore: unused_element
   bool _equalsAspect<T>(InheritableAspect<T> a, InheritableAspect<T> b) {
     if (a is EquatableAspect<T>) return a._equals(b);
 
@@ -1945,8 +1948,7 @@ class _InheritableElement<T> extends InheritedElement {
   bool removeKey(Element dependent, Key key) {
     final dependencies = getDependencies(dependent);
 
-    if (dependencies == null || dependencies.isEmpty || key == null)
-      return false;
+    if (dependencies == null || dependencies.isEmpty) return false;
 
     assert(dependencies.containsKey(key));
     final removed = dependencies.remove(key) != null;
