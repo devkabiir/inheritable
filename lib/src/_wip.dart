@@ -17,6 +17,7 @@ mixin SetDefaultAspect<A, T> on TransformingAspect<A, T> {
   set defaultValue(A value);
 }
 
+// ignore: unused_element
 abstract class _DefaultAspectValue<A, T> extends InheritableAspect<T>
     with
         DependableAspect<T>,
@@ -24,6 +25,7 @@ abstract class _DefaultAspectValue<A, T> extends InheritableAspect<T>
         TransformingAspect<A, T>,
         SetDefaultAspect<A, T>,
         DefaultAspectofContext<A, T> {
+  // ignore: unused_field
   final InheritableAspect<T> _delegate;
 
   _DefaultAspectValue(this._delegate)
@@ -153,6 +155,7 @@ mixin AutoDisposeAspectResourcesElement on Element {
   @override
   void unmount() {
     _aspectsInUse.forEach((a, _) => a.dispose(this));
+    // ignore: cascade_invocations
     _aspectsInUse.clear();
 
     super.unmount();
